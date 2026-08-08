@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ms Beau Ave — Back Office (Demo)</title>
+<style>
+  :root {
+    --rose-primary:#C08081; --rose-deep:#9E5B5D; --rose-soft:#E8C4C4;
+    --rose-blush:#F6E7E7; --rose-dust:#D8A7A7; --neutral-ink:#3E2C2D;
+    --neutral-warm:#FAF6F4; --success:#5F8D6B; --warning:#C9963F; --danger:#B04A4A;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:Inter,system-ui,-apple-system,sans-serif; background:var(--neutral-warm); color:var(--neutral-ink); }
+  header { background:var(--rose-blush); border-bottom:2px solid var(--rose-dust); padding:14px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:1.15rem; color:var(--rose-deep); }
+  header .badge { font-size:.72rem; background:var(--rose-soft); color:var(--rose-deep); padding:3px 10px; border-radius:999px; }
+  header a { margin-left:auto; color:var(--rose-primary); font-size:.85rem; }
+  nav { display:flex; gap:4px; padding:10px 24px 0; background:var(--rose-blush); flex-wrap:wrap; }
+  nav button { border:none; background:transparent; padding:10px 16px; font:inherit; font-size:.9rem; color:var(--neutral-ink); cursor:pointer; border-radius:10px 10px 0 0; }
+  nav button.active { background:var(--neutral-warm); color:var(--rose-deep); font-weight:600; }
+  main { padding:24px; max-width:1180px; margin:0 auto; }
+  .grid { display:grid; gap:16px; }
+  .cols2 { grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); }
+  .card { background:#fff; border:1px solid var(--rose-soft); border-radius:12px; padding:18px; }
+  .card h2 { font-size:1rem; color:var(--rose-deep); margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th { text-align:left; color:var(--rose-deep); font-weight:600; padding:6px 8px; border-bottom:2px solid var(--rose-soft); }
+  td { padding:6px 8px; border-bottom:1px solid var(--rose-blush); }
+  .tag { display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px; background:var(--rose-soft); color:var(--rose-deep); }
+  .tag.ok { background:#e3efe6; color:var(--success); } .tag.warn { background:#f6ecd8; color:var(--warning); } .tag.bad { background:#f3dddd; color:var(--danger); }
+  button.action { background:var(--rose-primary); color:#fff; border:none; padding:8px 14px; border-radius:9px; font:inherit; font-size:.83rem; cursor:pointer; }
+  button.action:hover { background:var(--rose-deep); }
+  button.action.secondary { background:var(--rose-dust); }
+  button.action.small { padding:4px 10px; font-size:.75rem; }
+  input, select { font:inherit; font-size:.85rem; padding:8px 10px; border:1px solid var(--rose-dust); border-radius:8px; background:#fff; color:var(--neutral-ink); }
+  .stat { text-align:center; padding:14px; }
+  .stat .num { font-size:1.6rem; font-weight:700; color:var(--rose-deep); }
+  .stat .lbl { font-size:.75rem; color:#8a7374; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .toast { position:fixed; bottom:20px; right:20px; max-width:380px; background:var(--neutral-ink); color:#fff; padding:14px 18px; border-radius:10px; font-size:.85rem; opacity:0; transition:.3s; pointer-events:none; z-index:50; white-space:pre-line; }
+  .toast.show { opacity:.96; }
+  .muted { color:#8a7374; font-size:.8rem; }
+  .pick { background:var(--rose-blush); border-radius:8px; padding:8px 10px; font-size:.8rem; margin-top:6px; }
+  section { display:none; } section.visible { display:block; }
+  .feed li { list-style:none; padding:8px 0; border-bottom:1px solid var(--rose-blush); font-size:.85rem; }
+  .feed .k { font-size:.7rem; margin-right:6px; }
+  #cart li { list-style:none; display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌸 Ms Beau Ave</h1>
+  <span class="badge">Back Office — DEMO (in-memory, no DB)</span>
+  <span class="badge">Signed in: admin@msbeauave.ph (Admin)</span>
+  <a href="/landing.html" target="_blank">View public landing page ↗</a>
+</header>
+<nav id="nav">
+  <button data-tab="dashboard" class="active">📊 Dashboard</button>
+  <button data-tab="inventory">📦 Inventory & FEFO</button>
+  <button data-tab="pos">🛒 POS</button>
+  <button data-tab="orders">🚚 Orders & BOPIS</button>
+  <button data-tab="promos">🏷️ Pricing & Promos</button>
+  <button data-tab="crm">👥 CRM & Loyalty</button>
+  <button data-tab="cms">📰 Events & Bulletins</button>
+</nav>
+<main>
+
+<!-- ============ DASHBOARD ============ -->
+<section id="dashboard" class="visible">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:16px;" id="statRow"></div>
+  <div class="grid cols2">
+    <div class="card"><h2>⚠️ Near-Expiry Value at Risk</h2><div id="dashExpiry"></div></div>
+    <div class="card"><h2>🔔 Low-Stock Alerts (reorder point: 15)</h2><div id="dashLow"></div></div>
+    <div class="card"><h2>🚚 Courier Performance</h2><div id="dashCouriers"></div>
+      <p class="muted" style="margin-top:8px">Keep reliable partners; flag ones above 10% late.</p></div>
+    <div class="card"><h2>📣 Activity Stream (Bitrix24-style)</h2><ul class="feed" id="activityFeed"></ul></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>⚔️ Oversell-Protection Demo — "the last unit" race</h2>
+    <p class="muted">Simulates a walk-in POS sale and an online checkout both grabbing ALL remaining units of the Retinoid Night Active at the same moment. The single stock ledger guarantees exactly one succeeds.</p>
+    <div class="row" style="margin-top:10px">
+      <button class="action" onclick="runRace()">Run simultaneous-checkout simulation</button>
+    </div>
+    <div id="raceResult" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ INVENTORY ============ -->
+<section id="inventory">
+  <div class="grid cols2">
+    <div class="card">
+      <h2>Stock on Hand — one ledger, two channels</h2>
+      <table><thead><tr><th>Product</th><th>Store Shelf</th><th>Online WH</th><th>Total</th></tr></thead>
+      <tbody id="stockTable"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>🕒 Near-Expiry Radar (90 / 60 / 30-day windows)</h2>
+      <table><thead><tr><th>Batch</th><th>Expires</th><th>Units</th><th>At risk</th><th></th></tr></thead>
+      <tbody id="expiryTable"></tbody></table>
+      <p class="muted" style="margin-top:8px">One click turns a near-expiry batch into a flash sale (online) or in-store promo — spec acceptance check #3.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>📒 Stock Ledger (immutable — latest 50 movements)</h2>
+    <table><thead><tr><th>When</th><th>Type</th><th>Product</th><th>Batch</th><th>Location</th><th>Qty</th><th>Ref</th></tr></thead>
+    <tbody id="ledgerTable"></tbody></table>
+  </div>
+</section>
+
+<!-- ============ POS ============ -->
+<section id="pos">
+  <div class="grid cols2">
+    <div class="card">
+      <h2>1 · Scan customer loyalty QR (or phone)</h2>
+      <div class="row">
+        <select id="posCustomer"><option value="">— Guest (no loyalty) —</option></select>
+        <button class="action secondary" onclick="loadPosCustomer()">Scan QR</button>
+      </div>
+      <div id="posCustomerInfo" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h2>2 · Scan products (barcode-first)</h2>
+      <div class="row">
+        <select id="posProduct"></select>
+        <input id="posQty" type="number" value="1" min="1" style="width:70px">
+        <button class="action secondary" onclick="addToCart()">Scan / Add</button>
+      </div>
+      <ul id="cart" style="margin-top:12px"></ul>
+      <div id="cartTotals" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:12px">
+        <select id="posPay"><option value="cash">Cash</option><option value="card">Card</option><option value="gcash">GCash (ref entry)</option></select>
+        <input id="posRedeem" type="number" value="0" min="0" style="width:110px" title="Points to redeem (1pt = ₱1)">
+        <span class="muted">pts to redeem</span>
+        <button class="action" onclick="posCheckout()">Charge & print receipt</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>🧾 Receipt / FEFO pick guidance</h2>
+    <p class="muted">After checkout, staff see exactly which lot & shelf to pick from (earliest expiry first).</p>
+    <div id="posResult"></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>💬 "Why is it cheaper online?" — live promo panel for counter staff</h2>
+    <div id="posPromoPanel"></div>
+  </div>
+</section>
+
+<!-- ============ ORDERS ============ -->
+<section id="orders">
+  <div class="card" style="margin-bottom:16px">
+    <h2>Create online order (chat/manual intake or storefront)</h2>
+    <div class="row">
+      <select id="ordCustomer"></select>
+      <select id="ordProduct"></select>
+      <input id="ordQty" type="number" value="1" min="1" style="width:70px">
+      <select id="ordFulfil"><option value="bopis">BOPIS — pick up in-store</option><option value="courier">Courier delivery</option></select>
+      <select id="ordCourier"></select>
+      <button class="action" onclick="createOrder()">Place order</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Watch FEFO in action: an online order for Retinoid Night Active pulls the near-expiry lot from the <b>Store Shelf</b>, not the warehouse — spec acceptance check #2.</p>
+  </div>
+  <div class="card">
+    <h2>Order pipeline</h2>
+    <table><thead><tr><th>Order</th><th>Customer</th><th>Channel</th><th>Fulfillment</th><th>Total</th><th>Status</th><th>Pick list (FEFO)</th><th></th></tr></thead>
+    <tbody id="ordersTable"></tbody></table>
+  </div>
+</section>
+
+<!-- ============ PROMOS ============ -->
+<section id="promos">
+  <div class="grid cols2">
+    <div class="card">
+      <h2>One Price Book — channel prices side by side</h2>
+      <table><thead><tr><th>Product</th><th>Base ₱</th><th>Store ₱</th><th>Online ₱</th></tr></thead>
+      <tbody id="priceBook"></tbody></table>
+      <p class="muted" style="margin-top:8px">Divergence is always deliberate, visible & time-bound — never accidental.</p>
+    </div>
+    <div class="card">
+      <h2>Active promotions</h2>
+      <table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason</th><th>Ends</th></tr></thead>
+      <tbody id="promoTable"></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CRM ============ -->
+<section id="crm">
+  <div class="grid cols2" id="crmCards"></div>
+</section>
+
+<!-- ============ CMS ============ -->
+<section id="cms">
+  <div class="grid cols2">
+    <div class="card">
+      <h2>Publish bulletin (CMS-lite — no deploy needed)</h2>
+      <div class="grid" style="gap:10px">
+        <input id="blTitle" placeholder="Bulletin title">
+        <input id="blBody" placeholder="Body text">
+        <div><button class="action" onclick="postBulletin()">Publish to landing page + app feed</button></div>
+      </div>
+      <h2 style="margin-top:18px">Live bulletins</h2>
+      <ul class="feed" id="bulletinList"></ul>
+    </div>
+    <div class="card">
+      <h2>Events & bookable services</h2>
+      <div id="eventList"></div>
+      <h2 style="margin-top:18px">Today's bookings (staff view)</h2>
+      <div id="bookingList"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (path, opts) => {
+  const res = await fetch(path, opts ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(opts) } : undefined);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+};
+const fmt = (n) => '₱' + Number(n).toLocaleString('en-PH', {maximumFractionDigits:2});
+let toastTimer;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 4200); }
+
+// ---- Tabs ----
+$('nav').addEventListener('click', (e) => {
+  if (e.target.dataset.tab) {
+    document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b===e.target));
+    document.querySelectorAll('main section').forEach(s=>s.classList.toggle('visible', s.id===e.target.dataset.tab));
+    refresh();
+  }
+});
+
+// ---- Dashboard ----
+async function loadDashboard() {
+  const d = await api('/api/dashboard');
+  $('statRow').innerHTML = [
+    ['Sales today', fmt(d.salesToday)], ['Orders', d.orderCount],
+    ['In-store ₱', fmt(d.byChannel.store)], ['Online ₱', fmt(d.byChannel.online)],
+    ['Loyalty members', d.loyaltyMembers], ['Points outstanding', d.pointsOutstanding],
+  ].map(([l,n]) => `<div class="card stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join('');
+  $('dashExpiry').innerHTML = d.nearExpiryBatches
+    ? `<div class="stat"><div class="num" style="color:var(--warning)">${fmt(d.nearExpiryValueAtRisk)}</div><div class="lbl">${d.nearExpiryBatches} batch(es) in the 90-day radar — act in the Inventory tab</div></div>`
+    : '<p class="muted">No batches at risk 🎉</p>';
+  $('dashLow').innerHTML = d.lowStock.length
+    ? '<table><tbody>' + d.lowStock.map(p=>`<tr><td>${p.name}</td><td><span class="tag warn">${p.shelf+p.warehouse} left</span></td><td class="muted">suggest reorder</td></tr>`).join('') + '</tbody></table>'
+    : '<p class="muted">All products above reorder point ✔</p>';
+  $('dashCouriers').innerHTML = '<table><thead><tr><th>Partner</th><th>Late %</th><th>Failed %</th><th></th></tr></thead><tbody>' +
+    d.couriers.map(c=>`<tr><td>${c.name}</td><td>${c.latePct}%</td><td>${c.failedPct}%</td><td>${c.latePct>10?'<span class="tag bad">review partner</span>':'<span class="tag ok">reliable</span>'}</td></tr>`).join('') + '</tbody></table>';
+  const acts = await api('/api/activity');
+  const icons = { order:'🛒', promo:'🏷️', 'low-stock':'⚠️', bopis:'📍', cms:'📰', system:'⚙️' };
+  $('activityFeed').innerHTML = acts.slice(0,10).map(a=>`<li><span class="k">${icons[a.kind]||'•'}</span>${a.message}<div class="muted">${new Date(a.ts).toLocaleTimeString()}</div></li>`).join('');
+}
+
+async function runRace() {
+  const r = await api('/api/demo/race', { productId:'p5' });
+  $('raceResult').innerHTML = `<p class="muted">Units at stake: <b>${r.unitsAtStake}</b></p>` +
+    r.results.map(x => x.ok
+      ? `<div class="pick">✅ <b>${x.buyer}</b> — sale succeeded (order ${x.orderId}, ${x.qty} unit/s)</div>`
+      : `<div class="pick" style="background:#f3dddd">🚫 <b>${x.buyer}</b> — friendly out-of-stock: "${x.message}"</div>`).join('');
+  toast('Race simulation complete — the ledger sold the last unit exactly once.');
+}
+
+// ---- Inventory ----
+async function loadInventory() {
+  const inv = await api('/api/inventory');
+  $('stockTable').innerHTML = inv.byProduct.map(p=>{
+    const total = p.shelf + p.warehouse;
+    return `<tr><td>${p.name}</td><td>${p.shelf}</td><td>${p.warehouse}</td><td><span class="tag ${total<=15?'warn':'ok'}">${total}</span></td></tr>`;
+  }).join('');
+  const ne = await api('/api/near-expiry');
+  $('expiryTable').innerHTML = ne.map(b=>`<tr>
+    <td>${b.product}<div class="muted">lot ${b.lot}</div></td>
+    <td><span class="tag ${b.daysToExpiry<=30?'bad':'warn'}">${b.daysToExpiry}d — ${b.expiry}</span></td>
+    <td>${b.onHand}</td><td>${fmt(b.valueAtRisk)}</td>
+    <td><button class="action small" onclick="flashSale('${b.id}','online')">⚡ Flash sale</button>
+        <button class="action small secondary" onclick="flashSale('${b.id}','store')">🏬 Store promo</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="muted">Nothing in the radar</td></tr>';
+  const led = await api('/api/ledger');
+  $('ledgerTable').innerHTML = led.map(l=>`<tr><td class="muted">${new Date(l.ts).toLocaleString()}</td>
+    <td><span class="tag">${l.type}</span></td><td>${(productNames[l.productId]||l.productId)}</td>
+    <td>${l.batchId}</td><td>${l.locationId}</td><td style="color:${l.qty<0?'var(--danger)':'var(--success)'}">${l.qty>0?'+':''}${l.qty}</td><td class="muted">${l.ref}</td></tr>`).join('');
+}
+async function flashSale(batchId, channel) {
+  const promo = await api('/api/promos/flash-sale', { batchId, percent:20, channel });
+  toast(`Created: ${promo.name}\n−20% until ${promo.ends}. Counter staff can already see it in the POS promo panel.`);
+  refresh();
+}
+
+// ---- POS ----
+let cart = [];
+let productNames = {};
+async function loadPosData() {
+  const [prods, custs, promos] = await Promise.all([api('/api/products'), api('/api/customers'), api('/api/promos')]);
+  productNames = Object.fromEntries(prods.map(p=>[p.id,p.name]));
+  const prodOpts = prods.map(p=>`<option value="${p.id}">${p.name} — ${fmt(p.storePrice.price)}${p.bundle?' (SET)':''}</option>`).join('');
+  $('posProduct').innerHTML = prodOpts;
+  $('ordProduct').innerHTML = prodOpts;
+  $('posCustomer').innerHTML = '<option value="">— Guest (no loyalty) —</option>' + custs.map(c=>`<option value="${c.qr}">${c.qr} · ${c.name}</option>`).join('');
+  $('ordCustomer').innerHTML = custs.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const active = promos.filter(p=>p.active);
+  $('posPromoPanel').innerHTML = active.length ? '<table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason (tell the customer!)</th><th>Ends</th></tr></thead><tbody>' +
+    active.map(p=>`<tr><td>${p.name}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td>${p.reason}</td><td>${p.ends}</td></tr>`).join('') + '</tbody></table>'
+    : '<p class="muted">No active promos.</p>';
+  const couriers = await api('/api/couriers');
+  $('ordCourier').innerHTML = couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+async function loadPosCustomer() {
+  const qr = $('posCustomer').value;
+  if (!qr) { $('posCustomerInfo').innerHTML = '<p class="muted">Guest checkout — no loyalty attach.</p>'; return; }
+  const c = await api('/api/customers/' + encodeURIComponent(qr));
+  $('posCustomerInfo').innerHTML = `
+    <p><b>${c.name}</b> · ${c.phone} · <span class="tag ok">${c.points} pts</span> ${c.tags.map(t=>`<span class="tag">${t}</span>`).join(' ')}</p>
+    <p class="muted" style="margin-top:6px">Omnichannel purchase history:</p>
+    <table><tbody>${c.history.slice(0,4).map(h=>`<tr><td class="muted">${h.ts}</td><td><span class="tag">${h.channel}</span></td><td>${h.items.join(', ')}</td><td>${fmt(h.total)}</td></tr>`).join('')}</tbody></table>
+    <div class="pick">💡 <b>Suggest at counter:</b> ${c.suggestions.join('<br>💡 ')}</div>`;
+}
+function addToCart() {
+  cart.push({ productId: $('posProduct').value, qty: Number($('posQty').value)||1 });
+  renderCart();
+}
+function renderCart() {
+  $('cart').innerHTML = cart.map((i,idx)=>`<li><span>${productNames[i.productId]} × ${i.qty}</span><button class="action small secondary" onclick="cart.splice(${idx},1);renderCart()">✕</button></li>`).join('');
+  $('cartTotals').innerHTML = cart.length ? `<span class="muted">${cart.length} line(s) — promos & totals apply at charge</span>` : '';
+}
+async function posCheckout() {
+  if (!cart.length) return toast('Cart is empty — scan a product first.');
+  try {
+    const order = await api('/api/pos/checkout', {
+      customerId: $('posCustomer').value || null, items: cart,
+      payment: $('posPay').value, redeemPoints: Number($('posRedeem').value)||0,
+    });
+    cart = []; renderCart(); $('posRedeem').value = 0;
+    $('posResult').innerHTML = receiptHtml(order);
+    toast(`Sale ${order.id} completed — ${fmt(order.total)}${order.pointsEarned?` · +${order.pointsEarned} pts earned`:''}`);
+    loadPosCustomer();
+  } catch (e) { toast('🚫 ' + e.message); }
+}
+function receiptHtml(o) {
+  return `<div class="pick"><b>Receipt ${o.id}</b> · ${o.customerName} · ${o.payment.toUpperCase()}<br>
+    ${o.lines.map(l=>`${l.name} ×${l.qty} — ${fmt(l.unitPrice)}${l.promosApplied.length?` <span class="tag warn">promo −${fmt(l.promosApplied.reduce((s,p)=>s+p.off,0))}</span>`:''}`).join('<br>')}<br>
+    Subtotal ${fmt(o.subtotal)} · Discounts −${fmt(o.discount)} ${o.pointsRedeemed?`· Points −${fmt(o.pointsRedeemed)}`:''} · <b>Total ${fmt(o.total)}</b>
+    ${o.pointsEarned?` · <span class="tag ok">+${o.pointsEarned} pts</span>`:''}</div>
+    <div class="pick">📋 <b>FEFO pick guidance for staff:</b><br>${o.lines.flatMap(l=>l.pick).map(p=>`Pick <b>${p.qty}×</b> ${p.product} — lot <b>${p.lot}</b> (exp ${p.expiry}) from <b>${p.location}</b>`).join('<br>')}</div>`;
+}
+
+// ---- Orders ----
+async function createOrder() {
+  try {
+    const order = await api('/api/orders', {
+      customerId: $('ordCustomer').value,
+      items: [{ productId: $('ordProduct').value, qty: Number($('ordQty').value)||1 }],
+      fulfillment: $('ordFulfil').value, courierId: $('ordCourier').value, payment:'cod',
+    });
+    toast(`Online order ${order.id} placed (${order.fulfillment.toUpperCase()}). FEFO allocated — see pick list.`);
+    refresh();
+  } catch (e) { toast('🚫 ' + e.message); }
+}
+async function loadOrders() {
+  const ords = await api('/api/orders');
+  $('ordersTable').innerHTML = ords.map(o=>{
+    const done = o.status==='completed';
+    return `<tr><td>${o.id}<div class="muted">${new Date(o.ts).toLocaleTimeString()}</div></td>
+      <td>${o.customerName}</td><td><span class="tag">${o.channel}</span></td>
+      <td>${o.fulfillment==='bopis'?'📍 BOPIS':o.fulfillment==='courier'?'🚚 courier':'🏬 counter'}${o.trackingLink?`<div><a href="${o.trackingLink}" target="_blank" style="color:var(--rose-primary)">tracking link ↗</a></div>`:''}</td>
+      <td>${fmt(o.total)}</td>
+      <td><span class="tag ${done?'ok':o.status==='ready-for-pickup'?'warn':''}">${o.status}</span></td>
+      <td style="font-size:.75rem">${o.lines.flatMap(l=>l.pick).map(p=>`${p.qty}× lot ${p.lot} @ ${p.location}`).join('<br>')}</td>
+      <td>${!done && o.channel!=='store' ? `<button class="action small" onclick="advance('${o.id}')">Advance →</button>`:''}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="muted">No orders yet — create one above.</td></tr>';
+}
+async function advance(orderId) {
+  const o = await api('/api/orders/advance', { orderId });
+  if (o.status==='ready-for-pickup') toast(`📲 ${o.customerName} notified: order ready for pickup. At the counter: verify QR, hand over, upsell!`);
+  refresh();
+}
+
+// ---- Promos / price book ----
+async function loadPromos() {
+  const prods = await api('/api/products');
+  $('priceBook').innerHTML = prods.map(p=>{
+    const s=p.storePrice, o=p.onlinePrice;
+    return `<tr><td>${p.name}</td><td>${fmt(p.price)}</td>
+      <td>${s.applied.length?`<b style="color:var(--rose-deep)">${fmt(s.price)}</b> <span class="tag warn">promo</span>`:fmt(s.price)}</td>
+      <td>${o.applied.length?`<b style="color:var(--rose-deep)">${fmt(o.price)}</b> <span class="tag warn">promo</span>`:fmt(o.price)}</td></tr>`;
+  }).join('');
+  const promos = await api('/api/promos');
+  $('promoTable').innerHTML = promos.map(p=>`<tr><td>${p.name}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td class="muted">${p.reason}</td><td>${p.ends}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="muted">None</td></tr>';
+}
+
+// ---- CRM ----
+async function loadCrm() {
+  const custs = await api('/api/customers');
+  const cards = await Promise.all(custs.map(async c => {
+    const full = await api('/api/customers/' + c.id);
+    return `<div class="card"><h2>${c.name} <span class="tag ok">${c.points} pts</span></h2>
+      <p class="muted">${c.phone} · QR ${c.qr} · origin: <span class="tag">${c.origin}</span> ${c.tags.map(t=>`<span class="tag">${t}</span>`).join(' ')}</p>
+      <table style="margin-top:8px"><tbody>${c.history.slice(0,4).map(h=>`<tr><td class="muted">${h.ts}</td><td><span class="tag">${h.channel}</span></td><td>${h.items.join(', ')}</td><td>${fmt(h.total)}</td></tr>`).join('')}</tbody></table>
+      <div class="pick">💡 ${full.suggestions[0]}</div></div>`;
+  }));
+  $('crmCards').innerHTML = cards.join('');
+}
+
+// ---- CMS ----
+async function loadCms() {
+  const [bls, evs, bks] = await Promise.all([api('/api/bulletins'), api('/api/events'), api('/api/bookings')]);
+  $('bulletinList').innerHTML = bls.map(b=>`<li><b>${b.title}</b> <span class="muted">${b.ts}</span><br><span class="muted">${b.body}</span></li>`).join('');
+  $('eventList').innerHTML = evs.map(e=>`<div class="pick"><b>${e.title}</b> — ${e.date} @ ${e.location}<br><span class="muted">${e.description}</span></div>`).join('');
+  $('bookingList').innerHTML = bks.map(b=>`<div class="pick">🗓 ${b.slot} — <b>${b.customer}</b> · ${b.event} <span class="tag ok">${b.status}</span></div>`).join('') || '<p class="muted">No bookings.</p>';
+}
+async function postBulletin() {
+  if (!$('blTitle').value) return toast('Give the bulletin a title.');
+  await api('/api/bulletins', { title: $('blTitle').value, body: $('blBody').value });
+  $('blTitle').value = ''; $('blBody').value = '';
+  toast('Published! Open the landing page — it\'s already live. No deploy needed.');
+  loadCms();
+}
+
+// ---- Refresh ----
+async function refresh() {
+  const visible = document.querySelector('main section.visible').id;
+  await loadPosData();
+  if (visible==='dashboard') loadDashboard();
+  if (visible==='inventory') loadInventory();
+  if (visible==='pos') { /* posData already loaded */ }
+  if (visible==='orders') loadOrders();
+  if (visible==='promos') loadPromos();
+  if (visible==='crm') loadCrm();
+  if (visible==='cms') loadCms();
+}
+refresh();
+</script>
+</body>
+</html>

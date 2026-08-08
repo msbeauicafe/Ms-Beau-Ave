@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ms Beau Ave — Skincare that glows with you</title>
+<style>
+  :root {
+    --rose-primary:#C08081; --rose-deep:#9E5B5D; --rose-soft:#E8C4C4;
+    --rose-blush:#F6E7E7; --rose-dust:#D8A7A7; --neutral-ink:#3E2C2D; --neutral-warm:#FAF6F4;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:Inter,system-ui,sans-serif; background:var(--neutral-warm); color:var(--neutral-ink); line-height:1.6; }
+  h1,h2,h3 { font-family:Georgia,'Playfair Display',serif; color:var(--rose-deep); }
+  .hero { background:linear-gradient(160deg, var(--rose-blush), var(--rose-soft)); text-align:center; padding:80px 20px 60px; }
+  .hero h1 { font-size:clamp(2rem, 5vw, 3.2rem); letter-spacing:.5px; }
+  .hero p { max-width:520px; margin:16px auto 28px; color:#6d5556; }
+  .btn { display:inline-block; background:var(--rose-primary); color:#fff; padding:12px 28px; border-radius:999px; text-decoration:none; font-weight:600; }
+  .btn:hover { background:var(--rose-deep); }
+  .btn.ghost { background:transparent; border:2px solid var(--rose-dust); color:var(--rose-deep); margin-left:10px; }
+  main { max-width:1020px; margin:0 auto; padding:24px 20px 60px; }
+  section { margin-top:48px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:18px; }
+  .card { background:#fff; border:1px solid var(--rose-soft); border-radius:12px; padding:20px; }
+  .card h3 { font-size:1.05rem; margin-bottom:6px; }
+  .muted { color:#8a7374; font-size:.85rem; }
+  .tag { display:inline-block; font-size:.72rem; padding:2px 10px; border-radius:999px; background:var(--rose-soft); color:var(--rose-deep); margin-bottom:8px; }
+  .price { color:var(--rose-deep); font-weight:700; }
+  .strike { text-decoration:line-through; color:#a99; font-weight:400; font-size:.85rem; }
+  footer { background:var(--rose-blush); border-top:2px solid var(--rose-dust); text-align:center; padding:32px 20px; margin-top:60px; }
+  footer p { font-size:.85rem; color:#6d5556; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Ms Beau Ave</h1>
+  <p>Trendy skincare & beauty essentials — gentle actives, honest prices, and a team that knows your skin. Visit our store or shop online.</p>
+  <a class="btn" href="#promos">See current promos</a>
+  <a class="btn ghost" href="#events">Events & activities</a>
+</div>
+
+<main>
+  <section id="bulletins">
+    <h2>📰 Bulletins & News</h2>
+    <div class="cards" id="bulletinCards"></div>
+  </section>
+
+  <section id="promos">
+    <h2>🏷️ Current Promotions</h2>
+    <div class="cards" id="promoCards"></div>
+  </section>
+
+  <section id="events">
+    <h2>🌸 Events & Activities</h2>
+    <div class="cards" id="eventCards"></div>
+  </section>
+
+  <section>
+    <h2>✨ Product Highlights</h2>
+    <div class="cards" id="productCards"></div>
+  </section>
+
+  <section>
+    <h2>📍 Visit Us</h2>
+    <div class="card">
+      <p><b>Ms Beau Ave — Physical Store</b></p>
+      <p class="muted">Open Mon–Sat, 9:00 AM – 7:00 PM · Walk-ins welcome · Free skin analysis on event days</p>
+      <p class="muted">💬 Facebook: <b>MS Beau Ave</b> — message us for fast online orders · 📱 Customer app: coming to iOS & Android</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p><b>Ms Beau Ave</b> · Skincare that glows with you 🌸</p>
+  <p class="muted">Demo landing page — content above is managed live from the back office (CMS-lite, no deploys).</p>
+</footer>
+
+<script>
+const fmt = (n) => '₱' + Number(n).toLocaleString('en-PH', {maximumFractionDigits:2});
+async function load() {
+  const [bulletins, promos, events, products] = await Promise.all(
+    ['/api/bulletins','/api/promos','/api/events','/api/products'].map(u => fetch(u).then(r=>r.json())));
+
+  document.getElementById('bulletinCards').innerHTML = bulletins.map(b =>
+    `<div class="card"><span class="tag">${b.ts}</span><h3>${b.title}</h3><p class="muted">${b.body}</p></div>`).join('');
+
+  const active = promos.filter(p => p.active);
+  document.getElementById('promoCards').innerHTML = active.length ? active.map(p =>
+    `<div class="card"><span class="tag">${p.channel === 'store' ? 'In-store' : p.channel === 'online' ? 'Online' : 'All channels'}</span>
+     <h3>${p.name}</h3><p class="price">−${p.value}% off</p><p class="muted">Until ${p.ends}</p></div>`).join('')
+    : '<div class="card"><p class="muted">No promos right now — check back soon!</p></div>';
+
+  document.getElementById('eventCards').innerHTML = events.map(e =>
+    `<div class="card"><span class="tag">${e.date}</span><h3>${e.title}</h3>
+     <p class="muted">${e.location}</p><p class="muted">${e.description}</p></div>`).join('');
+
+  document.getElementById('productCards').innerHTML = products.map(p => {
+    const online = p.onlinePrice;
+    const hasPromo = online.applied.length > 0;
+    return `<div class="card">${p.active ? '<span class="tag">active formula</span>' : '<span class="tag">daily essential</span>'}
+      <h3>${p.name}</h3>
+      <p class="price">${hasPromo ? `<span class="strike">${fmt(p.price)}</span> ${fmt(online.price)} <span class="tag">promo</span>` : fmt(p.price)}</p>
+      <p class="muted">${p.bundle ? 'Complete routine set — soap, toner & day cream.' : 'Category: ' + p.category}</p></div>`;
+  }).join('');
+}
+load();
+</script>
+</body>
+</html>
