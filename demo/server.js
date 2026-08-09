@@ -485,6 +485,16 @@ const routes = {
     return { unitsAtStake: remaining, results };
   },
 
+  'POST /api/customers': async (req) => {
+    const { name, phone } = await readBody(req);
+    if (!name || !phone) throw new Error('Name and phone required');
+    const qr = 'MBA-CUST-' + String(customers.length + 1).padStart(4, '0');
+    const c = { id: nextId('c'), name, phone, qr, origin: 'app', points: 0, tags: [], history: [] };
+    customers.push(c);
+    logActivity('order', `New member registered: ${name} (${qr})`);
+    return c;
+  },
+
   'POST /api/inventory/receive': async (req) => {
     const { productId, lot, expiry, qty, cost, locationId } = await readBody(req);
     const p = productById(productId);
