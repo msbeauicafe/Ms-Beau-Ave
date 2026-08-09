@@ -216,7 +216,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v42 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v43 ☁️ cloud save ON</span>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="shop/" target="_blank" style="color:var(--rose-primary);font-size:.85rem">🛍️ Customer app ↗</a>
@@ -906,7 +906,7 @@ function renderDashboard() {
     : '<p class="muted">No batches at risk 🎉</p>';
   const low = db.products.filter(p=>!p.bundle).map(p=>({name:p.name, ...productOnHand(p.id)})).filter(p=>p.shelf+p.warehouse<=15);
   $('dashLow').innerHTML = low.length
-    ? '<div class="tablewrap"><table><tbody>'+low.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="tag warn">${p.shelf+p.warehouse} left</span></td><td class="muted">suggest reorder</td></tr>`).join('')+'</tbody></table></div>'
+    ? '<div class="tablewrap"><table><tbody>'+low.map(p=>`<tr><td>${histItemThumb(p.name)}${esc(p.name)}</td><td><span class="tag warn">${p.shelf+p.warehouse} left</span></td><td class="muted">suggest reorder</td></tr>`).join('')+'</tbody></table></div>'
     : '<p class="muted">All products above reorder point ✔</p>';
   const soldQty = {};
   for (const o of sales) for (const l of (o.lines || [])) soldQty[l.name] = (soldQty[l.name] || 0) + l.qty;
@@ -914,7 +914,7 @@ function renderDashboard() {
   const slow = db.products.filter((p) => !p.bundle && !soldQty[p.name]).map((p) => p.name);
   $('dashBest').innerHTML = ranked.length
     ? '<table><thead><tr><th>Product</th><th>Units sold</th></tr></thead><tbody>' +
-      ranked.slice(0, 5).map(([n, q], i) => '<tr><td>' + (i === 0 ? '🏆 ' : '') + esc(n) + '</td><td>' + q + '</td></tr>').join('') +
+      ranked.slice(0, 5).map(([n, q], i) => '<tr><td>' + (i === 0 ? '🏆 ' : '') + histItemThumb(n) + esc(n) + '</td><td>' + q + '</td></tr>').join('') +
       (slow.length ? '<tr><td class="muted">Slow movers (no sales): ' + slow.map(esc).join(', ') + '</td><td></td></tr>' : '') + '</tbody></table>'
     : '<p class="muted">No sales yet — best sellers appear as orders come in.</p>';
   const sugg = db.products.filter((p) => !p.bundle)
@@ -923,7 +923,7 @@ function renderDashboard() {
     .map((p) => ({ ...p, order: 40 - p.have }));
   $('dashSuggest').innerHTML = sugg.length
     ? '<table><thead><tr><th>Product</th><th>On hand</th><th>Order</th></tr></thead><tbody>' +
-      sugg.map((p) => '<tr><td>' + esc(p.name) + '</td><td><span class="tag warn">' + p.have + '</span></td><td><b>+' + p.order + ' units</b></td></tr>').join('') + '</tbody></table>'
+      sugg.map((p) => '<tr><td>' + histItemThumb(p.name) + esc(p.name) + '</td><td><span class="tag warn">' + p.have + '</span></td><td><b>+' + p.order + ' units</b></td></tr>').join('') + '</tbody></table>'
     : '<p class="muted">All products above the reorder point — nothing to purchase ✔</p>';
   $('dashCouriers').innerHTML = '<table><thead><tr><th>Partner</th><th>Late %</th><th>Failed %</th><th></th></tr></thead><tbody>'+
     db.couriers.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.latePct}%</td><td>${c.failedPct}%</td><td>${c.latePct>10?'<span class="tag bad">review partner</span>':'<span class="tag ok">reliable</span>'}</td></tr>`).join('')+'</tbody></table>';
