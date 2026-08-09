@@ -216,7 +216,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v46 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v47 ☁️ cloud save ON</span>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="shop/" target="_blank" style="color:var(--rose-primary);font-size:.85rem">🛍️ Customer app ↗</a>
@@ -285,6 +285,14 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
       </div>
       <div class="kanban" id="tkBoard" style="margin-top:12px"></div>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>📁 Drive — Docs &amp; Sheets</h2>
+    <div class="row">
+      <button class="action" onclick="newSheet()">📊 New spreadsheet</button>
+      <button class="action secondary" onclick="newDocFile()">📄 New document</button>
+    </div>
+    <div id="driveList" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -705,6 +713,28 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <div class="me-card" id="meAccountCard"></div>
   </div>
 </div>
+<div class="me-page" id="sheetEditor" role="dialog" aria-label="Spreadsheet">
+  <div style="max-width:960px;margin:0 auto;padding:14px">
+    <div class="row" style="margin-bottom:10px">
+      <input id="shName" style="flex:1;min-width:140px;font-weight:700" aria-label="Sheet name">
+      <button class="action small secondary" onclick="sheetAddRow()">+ Row</button>
+      <button class="action small secondary" onclick="sheetAddCol()">+ Column</button>
+      <button class="action small secondary" onclick="sheetExportCsv()">⬇️ Excel (CSV)</button>
+      <button class="action small" onclick="closeSheet()">💾 Save &amp; close</button>
+    </div>
+    <p class="muted" style="margin-bottom:8px">Type values, or formulas like <b>=SUM(B2:B8)</b>, <b>=AVG(C2:C5)</b>, <b>=B2*C2</b>. Tap a cell to see its formula.</p>
+    <div class="tablewrap"><table id="sheetGrid" style="min-width:600px"></table></div>
+  </div>
+</div>
+<div class="me-page" id="docEditor" role="dialog" aria-label="Document">
+  <div style="max-width:760px;margin:0 auto;padding:14px">
+    <div class="row" style="margin-bottom:10px">
+      <input id="dcName" style="flex:1;min-width:140px;font-weight:700" aria-label="Document name">
+      <button class="action small" onclick="closeDocFile()">💾 Save &amp; close</button>
+    </div>
+    <textarea id="dcBody" style="width:100%;min-height:60vh;font:inherit;font-size:.9rem;padding:12px;border:1px solid var(--rose-dust);border-radius:10px;background:#fff" aria-label="Document body"></textarea>
+  </div>
+</div>
 <div class="photo-zoom" id="photoZoomOverlay" onclick="this.classList.remove('open')" role="dialog" aria-label="Photo preview">
   <button class="pz-close" onclick="document.getElementById('photoZoomOverlay').classList.remove('open')" aria-label="Close photo">✕</button>
   <img id="photoZoomImg" alt="Zoomed photo">
@@ -776,6 +806,7 @@ function seed() {
     ratings: [],
     expenses: [],
     tasks: [],
+    files: [],
     posts: [],
     bulletins: [
       { id:'bl0', ts:daysFromNow(0), title:'Flash Sale Feature — Advanced Rejuvenating Facial Toner', image:'toner',
@@ -1633,6 +1664,8 @@ function globalSearch(q) {
     .map((c) => it('crm', '👤 ' + esc(c.name) + ' · ' + c.points + ' pts')));
   add('Promotions', db.promotions.filter((p) => p.name.toLowerCase().includes(q))
     .map((p) => it('promos', '🏷️ ' + esc(p.name) + (p.active ? '' : ' <span class="tag">ended</span>'))));
+  add('Files', (db.files || []).filter((f) => f.name.toLowerCase().includes(q))
+    .map((f) => it('workspace', (f.type === 'sheet' ? '📊 ' : '📄 ') + esc(f.name))));
   add('Tasks', (db.tasks || []).filter((t) => t.title.toLowerCase().includes(q))
     .map((t) => it('workspace', '✅ ' + esc(t.title) + ' <span class="tag">' + t.status + '</span>')));
   add('Team', db.employees.filter((e) => e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q))
@@ -1938,6 +1971,14 @@ async function loadPersisted() {
     }
     const bls = await sb('/bulletins?select=*&order=created_at.desc&limit=200');
     for (const r of bls) {
+      if ((r.bulletin_no || '').startsWith('file-')) {
+        try {
+          const f = JSON.parse(r.body);
+          db.files = db.files.filter((x) => x.id !== f.id);
+          if (!r.deleted && !f.deleted) db.files.push(f);
+        } catch (er) {}
+        continue;
+      }
       if ((r.bulletin_no || '').startsWith('task-')) {
         try {
           const t = JSON.parse(r.body);
@@ -2592,6 +2633,155 @@ function renderWorkspace() {
   }).join('');
 }
 setTimeout(() => { const _raWs = renderAll; renderAll = function () { _raWs(); renderWorkspace(); }; renderWorkspace(); }, 0);
+// ---- Drive: sheets & docs ----
+let curFile = null, sheetSaveTimer = 0;
+function persistFile(f) {
+  persistDoc('bulletins', 'bulletin_no', { bulletin_no: 'file-' + f.id, title: '__drive__', body: JSON.stringify(f), ts: f.updated, deleted: !!f.deleted }, f.type === 'sheet' ? 'Spreadsheet' : 'Document');
+}
+function colName(i) { return String.fromCharCode(65 + i); }
+function newSheet() {
+  const f = { id: nextId('sh') + '-' + SESSION_TAG, type: 'sheet', name: 'Untitled sheet', cols: 6, rows: 12, cells: {}, updated: new Date().toISOString().slice(0, 10) };
+  db.files.unshift(f);
+  openSheet(f.id);
+  renderDrive();
+}
+function newDocFile() {
+  const f = { id: nextId('dc') + '-' + SESSION_TAG, type: 'doc', name: 'Untitled document', text: '', updated: new Date().toISOString().slice(0, 10) };
+  db.files.unshift(f);
+  openDocFile(f.id);
+  renderDrive();
+}
+function delFile(id) {
+  if (!isAdmin()) return toast('🔒 Admin only.');
+  const f = db.files.find((x) => x.id === id);
+  if (!f) return;
+  f.deleted = true;
+  db.files = db.files.filter((x) => x.id !== id);
+  persistFile(f);
+  toast(f.name + ' deleted.');
+  renderDrive();
+}
+function cellVal(sheet, ref, depth) {
+  const raw = String(sheet.cells[ref] || '').trim();
+  if (raw.startsWith('=')) return evalFormula(sheet, raw.slice(1), (depth || 0) + 1);
+  const n = parseFloat(raw.replace(/,/g, ''));
+  return raw !== '' && !isNaN(n) && /^-?[\d.,]+$/.test(raw) ? n : raw;
+}
+function rangeVals(sheet, a, b, depth) {
+  const c1 = a.charCodeAt(0) - 65, r1 = parseInt(a.slice(1), 10);
+  const c2 = b.charCodeAt(0) - 65, r2 = parseInt(b.slice(1), 10);
+  const vals = [];
+  for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++)
+    for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
+      const v = cellVal(sheet, colName(c) + r, depth);
+      if (typeof v === 'number') vals.push(v);
+    }
+  return vals;
+}
+function evalFormula(sheet, expr, depth) {
+  if (depth > 20) return '#CYCLE';
+  try {
+    let e = expr.toUpperCase().replace(/\s+/g, '');
+    e = e.replace(/(SUM|AVG|MIN|MAX|COUNT)\(([A-Z]\d+):([A-Z]\d+)\)/g, (m, fn, a, b) => {
+      const v = rangeVals(sheet, a, b, depth);
+      if (fn === 'SUM') return String(v.reduce((x, y) => x + y, 0));
+      if (fn === 'AVG') return String(v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0);
+      if (fn === 'MIN') return String(v.length ? Math.min.apply(null, v) : 0);
+      if (fn === 'MAX') return String(v.length ? Math.max.apply(null, v) : 0);
+      return String(v.length);
+    });
+    e = e.replace(/[A-Z]\d+/g, (ref) => { const v = cellVal(sheet, ref, depth); return typeof v === 'number' ? '(' + v + ')' : '(0)'; });
+    if (!/^[-+*/().\d\s]*$/.test(e) || e === '') return '#ERR';
+    const v = Function('"use strict";return (' + e + ')')();
+    return typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : '#ERR';
+  } catch (x) { return '#ERR'; }
+}
+function openSheet(id) {
+  curFile = db.files.find((x) => x.id === id);
+  if (!curFile) return;
+  $('shName').value = curFile.name;
+  renderSheetGrid();
+  document.getElementById('sheetEditor').classList.add('open');
+}
+function renderSheetGrid() {
+  const f = curFile;
+  let html = '<tr><th style="width:34px"></th>' + Array.from({ length: f.cols }, (_, c) => '<th style="text-align:center">' + colName(c) + '</th>').join('') + '</tr>';
+  for (let r = 1; r <= f.rows; r++) {
+    html += '<tr><th style="text-align:center;color:var(--muted)">' + r + '</th>';
+    for (let c = 0; c < f.cols; c++) {
+      const ref = colName(c) + r;
+      const raw = String(f.cells[ref] || '');
+      const v = cellVal(f, ref, 0);
+      const isF = raw.trim().startsWith('=');
+      html += '<td style="padding:0"><input data-ref="' + ref + '" value="' + esc(String(v)) + '" ' +
+        'onfocus="this.value=curFile.cells[this.dataset.ref]||\'\'" onblur="sheetCellBlur(this)" ' +
+        'style="border:none;border-radius:0;width:100%;min-width:86px;background:' + (isF ? 'var(--rose-blush)' : '#fff') + ';font-variant-numeric:tabular-nums"></td>';
+    }
+    html += '</tr>';
+  }
+  document.getElementById('sheetGrid').innerHTML = html;
+}
+function sheetCellBlur(inp) {
+  const ref = inp.dataset.ref, val = inp.value;
+  if (val === '') delete curFile.cells[ref]; else curFile.cells[ref] = val;
+  renderSheetGrid();
+  sheetQueueSave();
+}
+function sheetQueueSave() {
+  clearTimeout(sheetSaveTimer);
+  sheetSaveTimer = setTimeout(() => { if (curFile) { curFile.updated = new Date().toISOString().slice(0, 10); persistFile(curFile); } }, 900);
+}
+function sheetAddRow() { curFile.rows = Math.min(60, curFile.rows + 1); renderSheetGrid(); sheetQueueSave(); }
+function sheetAddCol() { curFile.cols = Math.min(12, curFile.cols + 1); renderSheetGrid(); sheetQueueSave(); }
+function sheetExportCsv() {
+  const f = curFile;
+  const rows = [];
+  for (let r = 1; r <= f.rows; r++) rows.push(Array.from({ length: f.cols }, (_, c) => {
+    const v = String(cellVal(f, colName(c) + r, 0));
+    return '"' + v.replace(/"/g, '""') + '"';
+  }).join(','));
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (f.name || 'sheet') + '.csv';
+  a.click();
+  toast('Exported — opens in Excel / Google Sheets.');
+}
+function closeSheet() {
+  if (curFile) { curFile.name = $('shName').value.trim() || 'Untitled sheet'; curFile.updated = new Date().toISOString().slice(0, 10); persistFile(curFile); }
+  clearTimeout(sheetSaveTimer);
+  document.getElementById('sheetEditor').classList.remove('open');
+  curFile = null;
+  renderDrive();
+}
+function openDocFile(id) {
+  curFile = db.files.find((x) => x.id === id);
+  if (!curFile) return;
+  $('dcName').value = curFile.name;
+  $('dcBody').value = curFile.text || '';
+  document.getElementById('docEditor').classList.add('open');
+}
+function closeDocFile() {
+  if (curFile) {
+    curFile.name = $('dcName').value.trim() || 'Untitled document';
+    curFile.text = $('dcBody').value;
+    curFile.updated = new Date().toISOString().slice(0, 10);
+    persistFile(curFile);
+  }
+  document.getElementById('docEditor').classList.remove('open');
+  curFile = null;
+  renderDrive();
+}
+function renderDrive() {
+  const el = document.getElementById('driveList');
+  if (!el) return;
+  el.innerHTML = db.files.map((f) => '<div class="pick">' + (f.type === 'sheet' ? '📊' : '📄') + ' <b>' + esc(f.name) + '</b> <span class="muted">· updated ' + f.updated + '</span> ' +
+    '<button class="action small" onclick="' + (f.type === 'sheet' ? 'openSheet' : 'openDocFile') + '(\'' + f.id + '\')">Open</button> ' +
+    (f.type === 'sheet' ? '<button class="action small secondary" onclick="curFile=db.files.find(x=>x.id===\'' + f.id + '\');sheetExportCsv();curFile=null">⬇️ CSV</button> ' : '') +
+    (isAdmin() ? '<button class="action small secondary" onclick="delFile(\'' + f.id + '\')">✕</button>' : '') + '</div>'
+  ).join('') || '<p class="muted">No files yet — create your first spreadsheet 📊</p>';
+}
+setTimeout(() => { const _raDr = renderAll; renderAll = function () { _raDr(); renderDrive(); }; renderDrive(); }, 0);
 // ---- Accounting & Finance ----
 let exPhotoData = null;
 function exPhotoPick(inp) {
