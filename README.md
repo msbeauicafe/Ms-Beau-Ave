@@ -1,8 +1,14 @@
 # Ms Beau Ave — Omnichannel Skincare Commerce & Operations Platform
 
 - **[`Spec.md`](Spec.md)** — the full platform specification (single source of truth).
-- **[`demo/`](demo/)** — a runnable, zero-dependency **function demo** of the spec's
-  core features (in-memory store, no database):
+- **[`docs/`](docs/)** — the demo as a **static one-page app** (no server needed),
+  ready for GitHub Pages and Vercel:
+  - **GitHub Pages**: Settings → Pages → *Deploy from a branch* → `main` + `/docs`
+    → live at `https://msbeauicafe.github.io/Ms-Beau-Ave/`
+  - **Vercel**: import this repo at [vercel.com/new](https://vercel.com/new) —
+    `vercel.json` already points the deployment at `docs/`, no settings needed
+- **[`demo/`](demo/)** — the same demo as a runnable, zero-dependency **local server**
+  (in-memory store, no database):
 
   ```bash
   node demo/server.js
