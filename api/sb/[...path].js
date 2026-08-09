@@ -4,7 +4,7 @@
 // static app; demo-grade RLS on the two tables is the actual guard.
 const SB = 'https://ihmselvxdpbkccwchqow.supabase.co/rest/v1';
 const KEY = 'sb_publishable_SR4zrkB4SDH4T4yvWu19Nw_XSF5F_4c';
-const ALLOWED = /^(members|orders|promotions)$/;
+const ALLOWED = /^(members|orders|promotions|bulletins|events)$/;
 
 export default async function handler(req, res) {
   const qIdx0 = req.url.indexOf('?');
