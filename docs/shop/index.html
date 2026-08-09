@@ -216,7 +216,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v40 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v41 ☁️ cloud save ON</span>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="shop/" target="_blank" style="color:var(--rose-primary);font-size:.85rem">🛍️ Customer app ↗</a>
@@ -2311,7 +2311,7 @@ function renderHr() {
     return `<div class="pick" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${e.photo ? `<img src="${e.photo}" alt="" onclick="event.stopPropagation();photoZoom(this.src)" style="width:46px;height:46px;object-fit:cover;border-radius:50%;border:2px solid var(--rose-soft)">` : '<span style="display:inline-grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--rose-blush);font-size:22px">🧑‍💼</span>'}
       <span style="flex:1;min-width:120px"><b>${esc(e.name)}</b><br><span class="muted">${esc(e.role)}${e.phone ? ' · ' + esc(e.phone) : ''}${e.rate ? ' · ₱' + e.rate + '/day' : ''}</span></span>
-      <label class="action small secondary" style="cursor:pointer">📷<input type="file" accept="image/*" onchange="empPhotoPick(this,'${e.id}')" style="display:none"></label>
+      <label class="action small secondary" style="cursor:pointer">📷 Photo<input type="file" accept="image/*" onchange="empPhotoPick(this,'${e.id}')" style="display:none"></label>
       ${!a ? `<button class="action small" onclick="clockIn('${e.id}')">🕐 Time in</button>`
         : !a.out ? `<button class="action small" onclick="clockOut('${e.id}')">🕔 Time out</button> <span class="tag ok">in ${a.in}</span>`
         : `<span class="tag ok">done ${a.in}–${a.out}</span>`}
