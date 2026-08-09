@@ -216,7 +216,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v41 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v42 ☁️ cloud save ON</span>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="shop/" target="_blank" style="color:var(--rose-primary);font-size:.85rem">🛍️ Customer app ↗</a>
@@ -1791,7 +1791,7 @@ let sbOnline = false;
 async function sb(path, opts = {}) {
   const res = await fetch(SB_URL + path, {
     ...opts,
-    keepalive: opts.method === 'POST' || opts.method === 'PATCH',
+    keepalive: (opts.method === 'POST' || opts.method === 'PATCH') && (!opts.body || opts.body.length < 60000),
     headers: {
       apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY,
       'Content-Type': 'application/json', ...(opts.headers || {}),
@@ -2076,6 +2076,38 @@ function persistProductPhoto(pid) {
   persistDoc('bulletins', 'bulletin_no', { bulletin_no: 'pphoto-' + pid, title: '__product_photo__',
     body: p.image || '', ts: new Date().toISOString().slice(0, 10), deleted: !p.image }, 'Product photo');
 }
+const RETRY_KEY = 'mba_retry_queue';
+function retryQueueLoad() { try { return JSON.parse(localStorage.getItem(RETRY_KEY) || '[]'); } catch (e) { return []; } }
+function retryQueueSave(q) { try { localStorage.setItem(RETRY_KEY, JSON.stringify(q.slice(-15))); } catch (e) {} }
+function retryQueueAdd(item) {
+  const q = retryQueueLoad().filter((x) => !(x.table === item.table && x.payload[item.keyField] === item.payload[item.keyField]));
+  q.push(item);
+  retryQueueSave(q);
+}
+let retryFlushing = false;
+async function flushRetryQueue() {
+  if (retryFlushing) return;
+  const q = retryQueueLoad();
+  if (!q.length) return;
+  retryFlushing = true;
+  let ok = 0;
+  for (const item of [...q]) {
+    try {
+      await sb('/' + item.table + '?on_conflict=' + item.keyField, {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify([item.payload]),
+      });
+      ok++;
+      retryQueueSave(retryQueueLoad().filter((x) => !(x.table === item.table && x.payload[item.keyField] === item.payload[item.keyField])));
+    } catch (e) { break; }
+  }
+  retryFlushing = false;
+  if (ok) { toast('☁️ Synced ' + ok + ' pending change(s) to the cloud.'); renderAll(); }
+}
+addEventListener('online', () => setTimeout(flushRetryQueue, 800));
+setInterval(flushRetryQueue, 45000);
+setTimeout(flushRetryQueue, 4000);
 async function persistDoc(table, keyField, payload, label) {
   try {
     await sb('/' + table + '?on_conflict=' + keyField, {
@@ -2086,7 +2118,7 @@ async function persistDoc(table, keyField, payload, label) {
     toast('☁️ ' + label + ' saved to the cloud database.');
     logActivity('cms', label + ' saved to the cloud ☁️');
     renderAll();
-  } catch (e) { console.warn(table + ' sync skipped:', e.message); toast('⚠️ ' + label + ' NOT saved to the cloud — it exists only on this device.'); }
+  } catch (e) { console.warn(table + ' sync queued:', e.message); retryQueueAdd({ table, keyField, payload, label }); toast('📶 ' + label + ' queued — will sync to the cloud automatically.'); }
 }
 const _persistPostBulletin = postBulletin;
 postBulletin = function () {
