@@ -1,4 +1,7 @@
 {
   "outputDirectory": "docs",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/track/:no", "destination": "/api/track?no=:no" }
+  ]
 }
