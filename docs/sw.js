@@ -1,5 +1,5 @@
 /* Ms Beau Ave demo — offline-first service worker */
-const CACHE = 'msbeauave-demo-v43';
+const CACHE = 'msbeauave-demo-v44';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', (e) => {
