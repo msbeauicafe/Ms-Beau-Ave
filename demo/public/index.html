@@ -48,6 +48,11 @@
   .feed li { list-style:none; padding:8px 0; border-bottom:1px solid var(--rose-blush); font-size:.85rem; }
   .feed .k { font-size:.7rem; margin-right:6px; }
   #cart li { list-style:none; display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
+  .userbtn { cursor:pointer; border:none; }
+  button.action:disabled { opacity:.45; cursor:not-allowed; }
+  .overlay { position:fixed; inset:0; background:rgba(62,44,45,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--neutral-warm); border:1px solid var(--rose-dust); border-radius:12px; padding:24px; max-width:400px; width:100%; }
 </style>
 </head>
 <body>
@@ -57,7 +62,7 @@
     Ms Beau Ave
   </h1>
   <span class="badge">Back Office — DEMO (in-memory, no DB)</span>
-  <span class="badge">Signed in: admin@msbeauave.ph (Admin)</span>
+  <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <a href="/landing.html" target="_blank">View public landing page ↗</a>
 </header>
 <nav id="nav">
@@ -175,6 +180,7 @@
 
 <!-- ============ PROMOS ============ -->
 <section id="promos">
+  <div class="pick" id="promoLock" style="display:none;margin-bottom:12px;background:#f3dddd">🔒 Signed in as <b>Staff</b> — price book editing and promo creation are <b>Admin-only</b> (RBAC). This view stays read-only so counter staff can explain prices confidently.</div>
   <div class="grid cols2">
     <div class="card">
       <h2>One Price Book — channel prices side by side</h2>
@@ -203,7 +209,7 @@
       <div class="grid" style="gap:10px">
         <input id="blTitle" placeholder="Bulletin title">
         <input id="blBody" placeholder="Body text">
-        <div><button class="action" onclick="postBulletin()">Publish to landing page + app feed</button></div>
+        <div><button class="action" id="publishBtn" onclick="postBulletin()">Publish to landing page + app feed</button></div>
       </div>
       <h2 style="margin-top:18px">Live bulletins</h2>
       <ul class="feed" id="bulletinList"></ul>
@@ -218,6 +224,25 @@
 </section>
 
 </main>
+
+<div class="overlay open" id="signinOverlay" onclick="if(event.target===this&&currentRole)this.classList.remove('open')">
+  <div class="modal" role="dialog" aria-label="Sign in">
+    <div style="text-align:center;margin-bottom:10px"><span class="logo-mark" id="signinLogo" style="width:64px;height:64px"></span></div>
+    <h3 style="color:var(--rose-deep);text-align:center;margin-bottom:4px">Back Office Sign In</h3>
+    <p class="muted" style="text-align:center;margin-bottom:14px">Email + password &middot; demo accepts any password</p>
+    <div class="grid" style="gap:10px">
+      <input id="signinEmail" placeholder="Email" value="admin@msbeauave.ph" aria-label="Email">
+      <input id="signinPass" type="password" placeholder="Password" value="demo1234" aria-label="Password">
+      <button class="action" onclick="signIn(document.getElementById('signinEmail').value.toLowerCase().includes('staff')?'staff':'admin')">Sign in</button>
+    </div>
+    <p class="muted" style="text-align:center;margin:14px 0 8px">Or quick sign-in:</p>
+    <div class="row" style="justify-content:center">
+      <button class="action" onclick="signIn('admin')">👑 Admin — full access</button>
+      <button class="action secondary" onclick="signIn('staff')">🛍️ Staff — RBAC limited</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -283,8 +308,8 @@ async function loadInventory() {
     <td>${b.product}<div class="muted">lot ${b.lot}</div></td>
     <td><span class="tag ${b.daysToExpiry<=30?'bad':'warn'}">${b.daysToExpiry}d — ${b.expiry}</span></td>
     <td>${b.onHand}</td><td>${fmt(b.valueAtRisk)}</td>
-    <td><button class="action small" onclick="flashSale('${b.id}','online')">⚡ Flash sale</button>
-        <button class="action small secondary" onclick="flashSale('${b.id}','store')">🏬 Store promo</button></td></tr>`).join('')
+    <td><button class="action small" ${isAdmin()?'':'disabled '} onclick="flashSale('${b.id}','online')">⚡ Flash sale</button>
+        <button class="action small secondary" ${isAdmin()?'':'disabled '} onclick="flashSale('${b.id}','store')">🏬 Store promo</button></td></tr>`).join('')
     || '<tr><td colspan="5" class="muted">Nothing in the radar</td></tr>';
   const led = await api('/api/ledger');
   $('ledgerTable').innerHTML = led.map(l=>`<tr><td class="muted">${new Date(l.ts).toLocaleString()}</td>
@@ -292,6 +317,7 @@ async function loadInventory() {
     <td>${l.batchId}</td><td>${l.locationId}</td><td style="color:${l.qty<0?'var(--danger)':'var(--success)'}">${l.qty>0?'+':''}${l.qty}</td><td class="muted">${l.ref}</td></tr>`).join('');
 }
 async function flashSale(batchId, channel) {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot create promotions (RBAC).');
   const promo = await api('/api/promos/flash-sale', { batchId, percent:20, channel });
   toast(`Created: ${promo.name}\n−20% until ${promo.ends}. Counter staff can already see it in the POS promo panel.`);
   refresh();
@@ -420,6 +446,7 @@ async function loadCms() {
   $('bookingList').innerHTML = bks.map(b=>`<div class="pick">🗓 ${b.slot} — <b>${b.customer}</b> · ${b.event} <span class="tag ok">${b.status}</span></div>`).join('') || '<p class="muted">No bookings.</p>';
 }
 async function postBulletin() {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot publish bulletins (RBAC).');
   if (!$('blTitle').value) return toast('Give the bulletin a title.');
   await api('/api/bulletins', { title: $('blTitle').value, body: $('blBody').value });
   $('blTitle').value = ''; $('blBody').value = '';
@@ -439,6 +466,30 @@ async function refresh() {
   if (visible==='crm') loadCrm();
   if (visible==='cms') loadCms();
 }
+
+// ---- Sign-in & RBAC (demo) ----
+const USERS = { admin:{email:'admin@msbeauave.ph', role:'Admin'}, staff:{email:'staff@msbeauave.ph', role:'Staff'} };
+let currentRole = null;
+function openSignIn(){ document.getElementById('signinOverlay').classList.add('open'); }
+function isAdmin(){ return currentRole !== 'staff'; }
+function signIn(role){
+  currentRole = role;
+  const u = USERS[role];
+  document.getElementById('signinOverlay').classList.remove('open');
+  document.getElementById('userBadge').textContent = 'Signed in: ' + u.email + ' (' + u.role + ') ▾';
+  document.getElementById('signinEmail').value = u.email;
+  applyRole();
+  toast(role === 'staff'
+    ? 'Signed in as Staff. RBAC applied: promo creation, price book and bulletin publishing are locked (Admin only).'
+    : 'Signed in as Admin — full access.');
+}
+function applyRole(){
+  document.getElementById('promoLock').style.display = isAdmin() ? 'none' : 'block';
+  document.getElementById('publishBtn').disabled = !isAdmin();
+  refresh();
+}
+document.getElementById('signinLogo').appendChild(document.querySelector('header .logo-mark img').cloneNode());
+
 refresh();
 </script>
 </body>
