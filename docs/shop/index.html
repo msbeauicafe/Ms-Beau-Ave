@@ -216,7 +216,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v43 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v44 ☁️ cloud save ON</span>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="shop/" target="_blank" style="color:var(--rose-primary);font-size:.85rem">🛍️ Customer app ↗</a>
@@ -1355,6 +1355,24 @@ function myOrders() {
   if (!shopCustomer) return [];
   return db.orders.filter((o) => o.customerId === shopCustomer.id);
 }
+function mePhotoPick(inp) {
+  const f = inp.files && inp.files[0];
+  if (!f || !shopCustomer) return;
+  shrinkPhoto(f, (data) => {
+    shopCustomer.photo = data;
+    if (typeof persistCustomerPhoto === 'function') persistCustomerPhoto(shopCustomer);
+    toast('Profile photo saved 🌸');
+    renderMePage(); renderShopUi();
+    if (typeof renderAll === 'function') renderAll();
+  });
+}
+function mePhotoRemove() {
+  if (!shopCustomer) return;
+  shopCustomer.photo = undefined;
+  if (typeof persistCustomerPhoto === 'function') persistCustomerPhoto(shopCustomer);
+  toast('Profile photo removed.');
+  renderMePage(); renderShopUi();
+}
 function openMe() { meBucket = 'all'; renderMePage(); document.getElementById('mePage').classList.add('open'); }
 function meFilter(b) { meBucket = b; renderMePage(); }
 function renderMePage() {
@@ -1362,9 +1380,11 @@ function renderMePage() {
   if (!band) return;
   const c = shopCustomer;
   band.innerHTML = (c
-    ? (c.photo ? '<img class="avatar" src="' + c.photo + '" alt="">' : '<img class="avatar" src="' + (document.querySelector('.logo-mark img') ? document.querySelector('.logo-mark img').src : '') + '" alt="">') +
+    ? (c.photo ? '<img class="avatar" src="' + c.photo + '" alt="" onclick="event.stopPropagation();photoZoom(this.src)" style="cursor:zoom-in">' : '<img class="avatar" src="' + (document.querySelector('.logo-mark img') ? document.querySelector('.logo-mark img').src : '') + '" alt="">') +
       '<div><h3>' + esc(c.name) + '</h3><div class="muted2">' + c.phone + ' · QR ' + c.qr + '</div>' +
-      '<span class="me-chip">🌸 ' + c.points + ' points · Member</span></div>'
+      '<span class="me-chip">🌸 ' + c.points + ' points · Member</span><div style="margin-top:7px">' +
+      '<label class="action small" style="cursor:pointer;background:rgba(255,255,255,.25);border:none">📷 ' + (c.photo ? 'Change photo' : 'Add photo') + '<input type="file" accept="image/*" onchange="mePhotoPick(this)" style="display:none"></label>' +
+      (c.photo ? ' <button class="action small" style="background:rgba(255,255,255,.25);border:none" onclick="mePhotoRemove()">✕</button>' : '') + '</div></div>'
     : '<span style="font-size:2.4rem">👤</span><div><h3>Welcome, Beau Bestie!</h3>' +
       '<div class="muted2">Sign in to see your orders & points</div>' +
       '<button class="action small" style="margin-top:6px" onclick="document.getElementById(\'mePage\').classList.remove(\'open\');openCust()">Sign in / Join free</button></div>') +
