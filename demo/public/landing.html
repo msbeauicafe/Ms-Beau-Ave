@@ -33,9 +33,32 @@
   .strike { text-decoration:line-through; color:#a99; font-weight:400; font-size:.85rem; }
   footer { background:var(--rose-blush); border-top:2px solid var(--rose-dust); text-align:center; padding:32px 20px; margin-top:60px; }
   footer p { font-size:.85rem; color:#6d5556; }
+  .shopbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 16px; background:var(--rose-blush); border-bottom:1px solid var(--rose-dust); position:sticky; top:0; z-index:20; }
+  .action { background:var(--rose-primary); color:#fff; border:none; padding:8px 14px; border-radius:9px; font:inherit; font-size:.85rem; cursor:pointer; }
+  .action:hover { background:var(--rose-deep); }
+  .action.secondary { background:var(--rose-dust); }
+  .action.small { padding:4px 10px; font-size:.75rem; }
+  .action:disabled { opacity:.45; cursor:not-allowed; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .grid { display:grid; gap:10px; }
+  input, select { font:inherit; font-size:.85rem; padding:8px 10px; border:1px solid var(--rose-dust); border-radius:8px; background:#fff; color:var(--neutral-ink); max-width:100%; }
+  .overlay { position:fixed; inset:0; background:rgba(62,44,45,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--neutral-warm); border:1px solid var(--rose-dust); border-radius:12px; padding:24px; max-width:440px; width:100%; max-height:85vh; overflow-y:auto; }
+  .pick { background:var(--rose-blush); border-radius:8px; padding:8px 10px; font-size:.85rem; margin-top:6px; }
+  .tag.ok { background:#e3efe6; color:#5F8D6B; }
+  .tag.warn { background:#f6ecd8; color:#C9963F; }
+  .toast { position:fixed; bottom:20px; right:20px; max-width:380px; background:var(--neutral-ink); color:#FAF6F4; padding:14px 18px; border-radius:10px; font-size:.85rem; opacity:0; transition:opacity .3s; pointer-events:none; z-index:60; white-space:pre-line; }
+  .toast.show { opacity:.96; }
 </style>
 </head>
 <body>
+<div class="shopbar">
+  <span class="muted">🌸 Ms Beau Ave — shop online</span>
+  <span style="flex:1"></span>
+  <button class="action secondary" id="custBtn" onclick="openCust()">👤 Sign in</button>
+  <button class="action" id="cartBtn" onclick="openCart()">🛒 Cart (0)</button>
+</div>
 
 <div class="hero">
 <div class="hero-top"></div>
@@ -108,10 +131,179 @@ async function load() {
     return `<div class="card">${p.active ? '<span class="tag">active formula</span>' : '<span class="tag">daily essential</span>'}
       <h3>${p.name}</h3>
       <p class="price">${hasPromo ? `<span class="strike">${fmt(p.price)}</span> ${fmt(online.price)} <span class="tag">promo</span>` : fmt(p.price)}</p>
-      <p class="muted">${p.bundle ? 'Complete routine set — soap, toner & day cream.' : 'Category: ' + p.category}</p></div>`;
+      <p class="muted">${p.bundle ? 'Complete routine set — soap, toner & day cream.' : 'Category: ' + p.category}</p>
+      <button class="action" onclick="shopAdd('${p.id}')">🛒 Add to cart</button></div>`;
   }).join('');
 }
 load();
+</script>
+<div class="overlay" id="cartOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" role="dialog" aria-label="Shopping cart"><div id="cartContent"></div>
+  <div style="text-align:right;margin-top:10px"><button class="action secondary" onclick="document.getElementById('cartOverlay').classList.remove('open')">Close</button></div></div>
+</div>
+<div class="overlay" id="custOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" role="dialog" aria-label="Customer sign in"><div id="custContent"></div>
+  <div style="text-align:right;margin-top:10px"><button class="action secondary" onclick="document.getElementById('custOverlay').classList.remove('open')">Close</button></div></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+// ---- Storefront: cart, sign-in, checkout against the demo API ----
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const res = await fetch(path, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) } : undefined);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+};
+let toastTimer;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),4200); }
+let shopProducts = [];
+let shopCart = [];
+let shopCustomer = null;
+const PAY_METHODS = {
+  cod:      { label: 'Cash on Delivery / Pay at pickup', note: '' },
+  gcash:    { label: 'GCash', note: 'Send payment to GCash 0917 555 0100 (Ms Beau Ave), then enter the reference number below.' },
+  maya:     { label: 'Maya', note: 'Send payment to Maya 0917 555 0100 (Ms Beau Ave), then enter the reference number below.' },
+  bpi:      { label: 'BPI Online', note: 'Transfer to BPI acct 1234-5678-90 (Ms Beau Ave Enterprises), then enter the reference number below.' },
+  bdo:      { label: 'BDO Online', note: 'Transfer to BDO acct 0098-7654-3210 (Ms Beau Ave Enterprises), then enter the reference number below.' },
+  instapay: { label: 'InstaPay / other bank or wallet', note: 'Transfer via InstaPay to 0917 555 0100 (Ms Beau Ave), then enter the reference number below.' },
+};
+async function shopInit(){ shopProducts = await api('/api/products'); }
+shopInit();
+const productOf = (id) => shopProducts.find(p => p.id === id);
+function shopAdd(productId){
+  const line = shopCart.find(i => i.productId === productId);
+  if (line) line.qty++;
+  else shopCart.push({ productId, qty: 1 });
+  toast((productOf(productId)?.name || 'Item') + ' added to cart 🛒');
+  renderShopUi();
+}
+function shopSetQty(productId, qty){
+  const line = shopCart.find(i => i.productId === productId);
+  if (!line) return;
+  line.qty = Math.max(0, qty);
+  if (!line.qty) shopCart = shopCart.filter(i => i !== line);
+  renderCartModal(); renderShopUi();
+}
+function shopTotals(){
+  let subtotal = 0, discount = 0;
+  for (const i of shopCart) {
+    const p = productOf(i.productId);
+    subtotal += p.price * i.qty;
+    discount += (p.price - p.onlinePrice.price) * i.qty;
+  }
+  const r = (n) => Math.round(n * 100) / 100;
+  return { subtotal: r(subtotal), discount: r(discount), total: r(subtotal - discount) };
+}
+function renderShopUi(){
+  $('cartBtn').textContent = '🛒 Cart (' + shopCart.reduce((s,i)=>s+i.qty,0) + ')';
+  $('custBtn').textContent = shopCustomer ? '👤 ' + shopCustomer.name.split(' ')[0] + ' · ' + shopCustomer.points + ' pts' : '👤 Sign in';
+}
+function openCart(){ renderCartModal(); $('cartOverlay').classList.add('open'); }
+function openCust(){ renderCustModal(); $('custOverlay').classList.add('open'); }
+function renderCartModal(){
+  const t = shopTotals();
+  const items = shopCart.length ? shopCart.map(i => {
+    const p = productOf(i.productId);
+    return '<li style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--rose-blush)">' +
+      '<span>' + p.name + '<br><span class="muted">' + fmt(p.onlinePrice.price) + ' each</span></span>' +
+      '<span style="white-space:nowrap"><button class="action small secondary" onclick="shopSetQty(\'' + p.id + '\',' + (i.qty-1) + ')">−</button> ' +
+      i.qty + ' <button class="action small secondary" onclick="shopSetQty(\'' + p.id + '\',' + (i.qty+1) + ')">+</button></span></li>';
+  }).join('') : '<li class="muted">Cart is empty — add products from the shop below.</li>';
+  $('cartContent').innerHTML =
+    '<h3 style="color:var(--rose-deep)">🛒 Your cart</h3>' +
+    '<ul style="list-style:none;padding:0;margin:10px 0">' + items + '</ul>' +
+    '<p style="margin:8px 0"><b>Total ' + fmt(t.total) + '</b>' + (t.discount ? ' <span class="tag warn">promos −' + fmt(t.discount) + '</span>' : '') + '</p>' +
+    '<p class="muted">' + (shopCustomer
+      ? 'Signed in as <b>' + shopCustomer.name + '</b> · ' + shopCustomer.points + ' pts'
+      : 'Checking out as guest — <a href="#" onclick="openCust();return false">sign in</a> to earn loyalty points') + '</p>' +
+    '<div class="grid" style="margin-top:8px">' +
+    '<select id="shopFulfil"><option value="courier">🚚 Courier delivery</option><option value="bopis">📍 Pick up in-store (BOPIS — no shipping fee)</option></select>' +
+    '<select id="shopPay" onchange="renderCartPayNote()">' + Object.entries(PAY_METHODS).map(([k,v])=>'<option value="'+k+'">'+v.label+'</option>').join('') + '</select>' +
+    '<div id="payNote"></div>' +
+    (shopCustomer && shopCustomer.points > 0
+      ? '<div class="row"><input id="shopRedeem" type="number" value="0" min="0" max="' + shopCustomer.points + '" style="width:100px" aria-label="Points to redeem"> <span class="muted">points to redeem (1 pt = ₱1)</span></div>' : '') +
+    '<button class="action" onclick="shopCheckout()" ' + (shopCart.length ? '' : 'disabled') + '>Place order · ' + fmt(t.total) + '</button>' +
+    '</div>';
+  renderCartPayNote();
+}
+function renderCartPayNote(){
+  const sel = $('shopPay'), note = $('payNote');
+  if (!sel || !note) return;
+  note.innerHTML = sel.value === 'cod' ? '' :
+    '<p class="muted">' + PAY_METHODS[sel.value].note + '</p>' +
+    '<input id="shopRef" placeholder="Payment reference no." aria-label="Payment reference" style="width:100%">';
+}
+async function shopCheckout(){
+  if (!shopCart.length) return toast('Cart is empty.');
+  const method = $('shopPay').value;
+  let payment = method;
+  if (method !== 'cod') {
+    const ref = ($('shopRef')?.value || '').trim();
+    if (!ref) return toast('Send the payment first, then enter the reference number.');
+    payment = PAY_METHODS[method].label + ' (ref ' + ref + ')';
+  }
+  try {
+    const order = await api('/api/orders', {
+      customerId: shopCustomer ? shopCustomer.id : null,
+      items: shopCart.map(i => ({ productId: i.productId, qty: i.qty })),
+      fulfillment: $('shopFulfil').value, courierId: 'jt', payment,
+      redeemPoints: Number($('shopRedeem')?.value) || 0,
+    });
+    shopCart = [];
+    if (shopCustomer) { shopCustomer.points = shopCustomer.points - order.pointsRedeemed + order.pointsEarned; }
+    $('cartContent').innerHTML =
+      '<h3 style="color:var(--rose-deep)">🎉 Order confirmed!</h3>' +
+      '<div class="pick">Order <b>' + order.id + '</b> · Total <b>' + fmt(order.total) + '</b><br>' +
+      'Payment: ' + order.payment + '<br>' +
+      (order.fulfillment === 'bopis'
+        ? 'Pick up in-store — we will notify you when it is ready. Show your QR at the counter.'
+        : 'Courier delivery — <a href="' + order.trackingLink + '" target="_blank">track your package ↗</a>') +
+      (order.pointsEarned ? '<br><span class="tag ok">+' + order.pointsEarned + ' points earned</span>' : '') + '</div>';
+    renderShopUi(); load();
+  } catch (e) { toast('🚫 ' + e.message); }
+}
+async function renderCustModal(){
+  if (shopCustomer) {
+    $('custContent').innerHTML =
+      '<h3 style="color:var(--rose-deep)">👤 ' + shopCustomer.name + '</h3>' +
+      '<p class="muted">' + shopCustomer.phone + ' · QR ' + shopCustomer.qr + ' · <span class="tag ok">' + shopCustomer.points + ' pts</span></p>' +
+      '<div class="row" style="margin-top:12px">' +
+      '<button class="action secondary" onclick="shopCustomer=null;renderCustModal();renderShopUi()">Sign out</button>' +
+      '<button class="action" onclick="document.getElementById(\'custOverlay\').classList.remove(\'open\')">Continue shopping</button></div>';
+    return;
+  }
+  const members = await api('/api/customers');
+  $('custContent').innerHTML =
+    '<h3 style="color:var(--rose-deep)">👤 Customer sign in</h3>' +
+    '<p class="muted">Phone number + OTP (demo — the OTP step auto-accepts)</p>' +
+    '<div class="row" style="margin-top:8px"><input id="custPhone" placeholder="+63 917 555 0101" style="flex:1;min-width:150px"><button class="action" onclick="custSignIn()">Sign in</button></div>' +
+    '<p class="muted" style="margin:12px 0 4px">Demo members:</p>' +
+    '<div class="row">' + members.slice(0,3).map(c => '<button class="action small secondary" onclick="custQuick(\'' + c.id + '\')">' + c.name + '</button>').join(' ') + '</div>' +
+    '<p class="muted" style="margin:14px 0 4px">New member? Join free and earn points on every order:</p>' +
+    '<div class="row"><input id="regName" placeholder="Full name" style="flex:1;min-width:130px"><input id="regPhone" placeholder="+63 9xx xxx xxxx" style="flex:1;min-width:130px"><button class="action" onclick="custRegister()">Create account</button></div>';
+}
+async function custQuick(id){
+  shopCustomer = await api('/api/customers/' + id);
+  toast('Signed in as ' + shopCustomer.name + ' 🌸');
+  renderCustModal(); renderShopUi();
+}
+async function custSignIn(){
+  const q = ($('custPhone').value || '').replace(/\D/g, '');
+  if (q.length < 7) return toast('Enter your phone number.');
+  try { shopCustomer = await api('/api/customers/' + q.slice(-9)); toast('Signed in as ' + shopCustomer.name + ' 🌸'); renderCustModal(); renderShopUi(); }
+  catch { toast('No account with that number — create one below.'); }
+}
+async function custRegister(){
+  const name = ($('regName').value || '').trim();
+  const phone = ($('regPhone').value || '').trim();
+  if (!name || !phone) return toast('Enter your name and phone number.');
+  try {
+    shopCustomer = await api('/api/customers', { name, phone });
+    toast('Welcome, ' + name + '! Account created — you earn points on every order.');
+    renderCustModal(); renderShopUi();
+  } catch (e) { toast('🚫 ' + e.message); }
+}
 </script>
 </body>
 </html>
