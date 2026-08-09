@@ -14,7 +14,11 @@ export default async function handler(req, res) {
   if (!['GET', 'POST', 'PATCH'].includes(req.method)) return res.status(405).json({ error: 'method not allowed' });
 
   const qIdx = req.url.indexOf('?');
-  const qs = qIdx >= 0 ? req.url.slice(qIdx) : '';
+  const params = new URLSearchParams(qIdx >= 0 ? req.url.slice(qIdx + 1) : '');
+  params.delete('path');
+  params.delete('...path');
+  const cleaned = params.toString();
+  const qs = cleaned ? '?' + cleaned : '';
 
   const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
   if (req.headers.prefer) headers.Prefer = req.headers.prefer;
