@@ -485,6 +485,94 @@ const routes = {
     return { unitsAtStake: remaining, results };
   },
 
+  'POST /api/inventory/receive': async (req) => {
+    const { productId, lot, expiry, qty, cost, locationId } = await readBody(req);
+    const p = productById(productId);
+    if (!p || p.bundle) throw new Error('Pick a non-bundle product');
+    if (!expiry || !(qty > 0)) throw new Error('Expiry date and a positive quantity are required');
+    const loc = locationId === 'warehouse' ? 'warehouse' : 'shelf';
+    const batch = { id: nextId('b'), productId, lot: lot || 'LOT-' + idCounter, expiry, cost: cost || 0,
+      stock: { shelf: loc === 'shelf' ? qty : 0, warehouse: loc === 'warehouse' ? qty : 0 } };
+    batches.push(batch);
+    ledger.push({ id: nextId('led'), ts: new Date().toISOString(), type: 'receive', productId, batchId: batch.id, locationId: loc, qty, ref: 'PO-' + batch.id, note: `Received lot ${batch.lot}` });
+    logActivity('system', `Received ${qty}× ${p.name} — lot ${batch.lot}, expires ${expiry}`);
+    return batch;
+  },
+
+  'POST /api/inventory/transfer': async (req) => {
+    const { batchId, qty, direction } = await readBody(req);
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch) throw new Error('Batch not found');
+    const toShelf = direction === 'toShelf';
+    const from = toShelf ? 'warehouse' : 'shelf', to = toShelf ? 'shelf' : 'warehouse';
+    if (!(qty > 0) || batch.stock[from] < qty) { const e = new Error(`Only ${batch.stock[from]} unit(s) available at ${from}`); e.friendly = true; throw e; }
+    batch.stock[from] -= qty; batch.stock[to] += qty;
+    ledger.push({ id: nextId('led'), ts: new Date().toISOString(), type: 'transfer-out', productId: batch.productId, batchId, locationId: from, qty: -qty, ref: 'TR-' + batchId });
+    ledger.push({ id: nextId('led'), ts: new Date().toISOString(), type: 'transfer-in', productId: batch.productId, batchId, locationId: to, qty, ref: 'TR-' + batchId });
+    logActivity('system', `Transferred ${qty}× lot ${batch.lot} → ${to === 'shelf' ? 'Store Shelf' : 'Online Warehouse'}`);
+    return batch;
+  },
+
+  'POST /api/pricebook': async (req) => {
+    const { productId, price } = await readBody(req);
+    const p = productById(productId);
+    if (!p) throw new Error('Product not found');
+    if (!(price > 0)) throw new Error('Enter a valid price');
+    const old = p.price;
+    p.price = price;
+    logActivity('promo', `Price change: ${p.name} ₱${old} → ₱${price} (audit logged)`);
+    return p;
+  },
+
+  'POST /api/promos/create': async (req) => {
+    const { productId, percent, channel, ends, reason } = await readBody(req);
+    const p = productById(productId);
+    if (!p) throw new Error('Product not found');
+    if (!(percent >= 1 && percent <= 90)) throw new Error('Percent must be between 1 and 90');
+    if (!ends) throw new Error('End date required');
+    const promo = { id: nextId('promo'),
+      name: `${channel === 'store' ? 'In-Store Promo' : channel === 'online' ? 'Flash Sale' : 'Promo'} — ${p.name}`,
+      productId, type: 'percent', value: percent, channel: channel || 'online',
+      reason: reason || 'Manual promo', ends, active: true };
+    promotions.push(promo);
+    logActivity('promo', `Created promo: ${p.name} −${percent}% (${promo.channel}) until ${ends}`);
+    return promo;
+  },
+
+  'POST /api/promos/end': async (req) => {
+    const { id } = await readBody(req);
+    const pr = promotions.find((x) => x.id === id);
+    if (!pr) throw new Error('Promo not found');
+    pr.active = false;
+    logActivity('promo', `Ended promo: ${pr.name}`);
+    return pr;
+  },
+
+  'POST /api/events': async (req) => {
+    const { title, date, location, description } = await readBody(req);
+    if (!title || !date) throw new Error('Title and date required');
+    const ev = { id: nextId('e'), title, date, location: location || 'Ms Beau Ave Store', description: description || '' };
+    events.push(ev);
+    logActivity('cms', `Event published: "${title}" — live on landing page & app feed`);
+    return ev;
+  },
+
+  'POST /api/events/remove': async (req) => {
+    const { id } = await readBody(req);
+    const i = events.findIndex((e) => e.id === id);
+    if (i < 0) throw new Error('Event not found');
+    events.splice(i, 1);
+    return { ok: true };
+  },
+
+  'POST /api/bulletins/remove': async (req) => {
+    const { id } = await readBody(req);
+    const i = bulletins.findIndex((b) => b.id === id);
+    if (i < 0) throw new Error('Bulletin not found');
+    bulletins.splice(i, 1);
+    return { ok: true };
+  },
+
   'GET /api/dashboard': () => {
     const sales = orders.filter((o) => o.status !== 'cancelled');
     const byChannel = { store: 0, online: 0 };
