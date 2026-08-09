@@ -7,9 +7,10 @@ const KEY = 'sb_publishable_SR4zrkB4SDH4T4yvWu19Nw_XSF5F_4c';
 const ALLOWED = /^(members|orders)$/;
 
 export default async function handler(req, res) {
-  const segs = req.query.path;
-  const path = Array.isArray(segs) ? segs.join('/') : (segs || '');
-  if (!ALLOWED.test(path)) return res.status(403).json({ error: 'table not allowed' });
+  const qIdx0 = req.url.indexOf('?');
+  const pathname = qIdx0 >= 0 ? req.url.slice(0, qIdx0) : req.url;
+  const path = decodeURIComponent(pathname.replace(/^\/api\/sb\/?/, '')).replace(/\/+$/, '');
+  if (!ALLOWED.test(path)) return res.status(403).json({ error: 'table not allowed', got: path });
   if (!['GET', 'POST', 'PATCH'].includes(req.method)) return res.status(405).json({ error: 'method not allowed' });
 
   const qIdx = req.url.indexOf('?');
