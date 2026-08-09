@@ -1,0 +1,18 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.msbeauave.shop",
+      "sha256_cert_fingerprints": ["1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.msbeauave.backoffice",
+      "sha256_cert_fingerprints": ["1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3"]
+    }
+  }
+]
