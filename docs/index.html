@@ -1048,6 +1048,118 @@ const _coreRenderAll = renderAll;
 renderAll = function () { _coreRenderAll(); renderShopUi(); };
 renderShopUi();
 </script>
+<script>
+// ---- Cloud persistence (Supabase): orders + members survive refreshes ----
+// Demo-grade: browser-side writes with the publishable key and open demo RLS
+// policies on exactly two tables. Production puts a real API in front.
+const SB_URL = 'https://ihmselvxdpbkccwchqow.supabase.co/rest/v1';
+const SB_KEY = 'sb_publishable_SR4zrkB4SDH4T4yvWu19Nw_XSF5F_4c';
+let sbOnline = false;
+
+async function sb(path, opts = {}) {
+  const res = await fetch(SB_URL + path, {
+    ...opts,
+    headers: {
+      apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json', ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + await res.text());
+  return res.status === 204 ? null : res.json();
+}
+
+async function persistMember(c) {
+  if (!c) return;
+  try {
+    const rows = await sb('/members?on_conflict=phone', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify([{ name: c.name, phone: c.phone, qr: c.qr, origin: c.origin || 'app', points: c.points || 0, tags: c.tags || [] }]),
+    });
+    if (rows && rows[0]) c.sbId = rows[0].id;
+    sbOnline = true;
+  } catch (e) { console.warn('member sync skipped:', e.message); }
+}
+
+async function persistOrder(order, customer) {
+  try {
+    if (customer && !customer.sbId) await persistMember(customer);
+    await sb('/orders', {
+      method: 'POST',
+      body: JSON.stringify([{
+        order_no: order.id, member_id: customer?.sbId || null, customer_name: order.customerName,
+        channel: order.channel, fulfillment: order.fulfillment, status: order.status,
+        payment: order.payment, lines: order.lines, subtotal: order.subtotal,
+        discount: order.discount, total: order.total,
+        points_redeemed: order.pointsRedeemed, points_earned: order.pointsEarned,
+        tracking_no: order.trackingNo || null,
+      }]),
+    });
+    if (customer?.sbId) await sb('/members?id=eq.' + customer.sbId, { method: 'PATCH', body: JSON.stringify({ points: customer.points }) });
+    sbOnline = true;
+    logActivity('system', 'Order ' + order.id + ' saved to the cloud database ☁️');
+    renderAll();
+  } catch (e) { console.warn('order sync skipped:', e.message); }
+}
+
+async function loadPersisted() {
+  try {
+    const members = await sb('/members?select=*&order=created_at.desc&limit=200');
+    for (const m of members) {
+      let c = db.customers.find((x) => x.phone === m.phone);
+      if (!c) {
+        c = { id: nextId('c'), name: m.name, phone: m.phone, qr: m.qr, origin: m.origin, points: m.points, tags: m.tags || [], history: [] };
+        db.customers.push(c);
+      }
+      c.sbId = m.id;
+      c.points = m.points;
+    }
+    const orders = await sb('/orders?select=*&order=created_at.desc&limit=200');
+    let loaded = 0;
+    for (const o of orders) {
+      if (db.orders.find((x) => x.id === o.order_no)) continue;
+      db.orders.push({
+        id: o.order_no, ts: o.created_at, channel: o.channel, customerName: o.customer_name,
+        lines: o.lines, subtotal: Number(o.subtotal), discount: Number(o.discount),
+        pointsRedeemed: o.points_redeemed, pointsEarned: o.points_earned, total: Number(o.total),
+        payment: o.payment, fulfillment: o.fulfillment, status: o.status,
+        trackingNo: o.tracking_no || undefined, persisted: true,
+      });
+      loaded++;
+    }
+    sbOnline = true;
+    if (loaded || members.length) {
+      logActivity('system', 'Loaded ' + loaded + ' saved order(s) and ' + members.length + ' member(s) from the cloud database ☁️');
+    } else {
+      logActivity('system', 'Cloud database connected — orders and members will be saved ☁️');
+    }
+    renderAll();
+  } catch (e) { console.warn('cloud load skipped (offline or blocked):', e.message); }
+}
+
+// Hook the core flows without touching them
+const _persistCheckout = checkout;
+checkout = function (args) {
+  const order = _persistCheckout(args);
+  const customer = args.customerId ? db.customers.find((c) => c.id === args.customerId || c.qr === args.customerId) : null;
+  persistOrder(order, customer);
+  return order;
+};
+const _persistAdvance = advanceOrder;
+advanceOrder = function (orderId) {
+  const order = _persistAdvance(orderId);
+  sb('/orders?order_no=eq.' + encodeURIComponent(orderId), { method: 'PATCH', body: JSON.stringify({ status: order.status }) })
+    .catch((e) => console.warn('status sync skipped:', e.message));
+  return order;
+};
+const _persistRegister = custRegister;
+custRegister = function () {
+  _persistRegister();
+  if (shopCustomer) persistMember(shopCustomer);
+};
+
+loadPersisted();
+</script>
 
 </body>
 </html>
