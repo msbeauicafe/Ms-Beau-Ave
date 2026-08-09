@@ -1,0 +1,102 @@
+══════════════════════════════════════════════════
+ GOOGLE PLAY LISTING COPY — copy-paste ready
+══════════════════════════════════════════════════
+
+────────────── APP 1: CUSTOMER APP ──────────────
+App name (30 chars max):
+Ms Beau Ave
+
+Short description (80 chars max):
+Shop Ms Beau Ave skincare — GCash checkout, loyalty points, delivery tracking.
+
+Full description (4000 chars max):
+Shop your favorite Ms Beau Ave skincare essentials right from your phone. 🌸
+
+✨ BROWSE & ORDER
+Explore soaps, toners, serums and bundles with live prices and flash-sale
+discounts. Add to cart and check out in seconds.
+
+💳 PAY YOUR WAY
+GCash, Maya, BPI, BDO, InstaPay — or cash on delivery / store pickup.
+Just send your payment and enter the reference number.
+
+🎁 LOYALTY REWARDS
+Join free, earn 1 point for every ₱50 spent, and redeem points as instant
+discounts at checkout. Your points are saved to your account.
+
+📦 TRACK YOUR ORDER
+Follow every order from packing to delivery with a shareable tracking link.
+
+📅 BOOK A SKIN ANALYSIS
+Reserve a free in-store skin analysis slot right from the app.
+
+🔔 STAY UPDATED
+Flash sales, restock alerts and store events, straight to your feed.
+
+App category: Shopping
+Privacy policy URL: https://ms-beau-ave.vercel.app/privacy
+Contact email: opcmsbeauaveenterprises@gmail.com
+
+────────────── APP 2: BACK OFFICE ──────────────
+App name (30 chars max):
+MBA Back Office
+
+Short description (80 chars max):
+Staff app for Ms Beau Ave — POS, inventory FEFO, orders, promos and CRM.
+
+Full description (4000 chars max):
+The staff companion app for Ms Beau Ave Enterprises. For internal use by
+store staff and administrators.
+
+🛒 POINT OF SALE — scan loyalty QR, apply promos and point redemptions,
+process returns and exchanges.
+
+📦 INVENTORY & FEFO — receive stock by lot and expiry, transfer between
+store shelf and online warehouse, and let first-expiry-first-out picking
+protect freshness. Near-expiry radar flags value at risk.
+
+🚚 ORDERS & BOPIS — manage online orders, buy-online-pick-up-in-store
+flows, and courier handoffs with customer tracking links.
+
+🏷️ PRICING & PROMOS — price book, flash sales and channel-specific
+promotions with full audit trail.
+
+👥 CRM & LOYALTY — member profiles, purchase history, notes and tags.
+
+🤝 RESELLERS & MAP — reseller directory and minimum-advertised-price
+violation tracking.
+
+📣 EVENTS & BULLETINS — publish store events and announcements to the
+customer app instantly.
+
+Note: this app requires a staff sign-in. Choose "Private" distribution or
+a closed track in Play Console if you don't want it publicly listed.
+
+App category: Business
+Privacy policy URL: https://ms-beau-ave.vercel.app/privacy
+Contact email: opcmsbeauaveenterprises@gmail.com
+
+────────────── DATA SAFETY FORM (both apps) ──────────────
+• Does your app collect or share user data? → Collects: YES; Shares: NO
+• Data types collected:
+  - Personal info → Name: YES (account management)
+  - Personal info → Phone number: YES (account management)
+  - Financial info → Purchase history: YES (app functionality)
+• All data encrypted in transit? → YES
+• Can users request data deletion? → YES (email opcmsbeauaveenterprises@gmail.com)
+• Committed to Play Families Policy → NO (general audience)
+
+────────────── FILES IN THIS FOLDER ──────────────
+shop-feature-1024x500.png        → Customer app feature graphic
+backoffice-feature-1024x500.png  → Back office feature graphic
+shop-1-home.png / shop-2-feed.png / shop-3-cart.png
+                                 → Customer app phone screenshots (1080×2400)
+backoffice-1-dashboard.png / backoffice-2-inventory.png / backoffice-3-pos.png
+                                 → Back office phone screenshots (1080×2400)
+
+App icon for both listings (512×512):
+https://ms-beau-ave.vercel.app/icon-512.png
+
+Upload bundles (.aab — what Play Console asks for):
+https://ms-beau-ave.vercel.app/msbeauave-shop.aab
+https://ms-beau-ave.vercel.app/msbeauave-backoffice.aab
