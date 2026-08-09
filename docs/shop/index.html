@@ -10,14 +10,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ms Beau Ave">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <script>
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
 }
 </script>
-<title>Ms Beau Ave — Platform Demo</title>
+<title>Ms Beau Ave — Shop</title>
 <style>
   :root {
     --rose-primary:#C08081; --rose-deep:#9E5B5D; --rose-soft:#E8C4C4;
@@ -1700,5 +1700,26 @@ renderShopUi();
 loadPersisted();
 </script>
 
+<style>
+body.client main { padding:0; max-width:none; }
+body.client .phone { max-width:520px; margin:0 auto; border:none; border-radius:0; box-shadow:none; min-height:100vh; }
+body.client .sh-header { border-radius:0; }
+body.client .sh-nav { border-radius:0; }
+@media (min-width:560px) {
+  body.client .phone { border:1px solid var(--rose-soft); border-radius:18px; margin:24px auto; min-height:0; box-shadow:0 10px 40px rgba(158,91,93,.18); }
+  body.client .sh-header { border-radius:17px 17px 0 0; }
+  body.client .sh-nav { border-radius:0 0 17px 17px; }
+}
+body.client #landing > p.muted { display:none; }
+</style>
+<script>
+// Customer mode: storefront only — no back office, no staff sign-in
+document.body.classList.add('client');
+document.querySelector('header.app').style.display = 'none';
+document.getElementById('nav').style.display = 'none';
+document.querySelectorAll('main section.tab').forEach((x) => x.classList.toggle('visible', x.id === 'landing'));
+document.getElementById('signinOverlay').classList.remove('open');
+renderAll();
+</script>
 </body>
 </html>
