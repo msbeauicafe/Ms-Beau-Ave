@@ -155,6 +155,37 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
       <p class="muted" style="margin-top:8px">One click turns a near-expiry batch into a flash sale or in-store promo — the promo appears instantly in the POS panel and on the landing page.</p>
     </div>
   </div>
+  <div class="grid cols2" style="margin-top:16px">
+    <div class="card">
+      <h2>📥 Receive stock (new batch)</h2>
+      <div class="row">
+        <select id="rcvProduct"></select>
+        <input id="rcvLot" placeholder="Lot #" style="width:110px" aria-label="Lot number">
+        <input id="rcvExpiry" type="date" aria-label="Expiry date">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="rcvQty" type="number" value="12" min="1" style="width:80px" aria-label="Quantity">
+        <span class="muted">units ·</span>
+        <input id="rcvCost" type="number" value="100" min="0" style="width:90px" aria-label="Unit cost">
+        <span class="muted">₱ cost ·</span>
+        <select id="rcvLoc"><option value="shelf">Store Shelf</option><option value="warehouse">Online Warehouse</option></select>
+        <button class="action" onclick="receiveStock()">Receive</button>
+      </div>
+      <p class="muted" style="margin-top:8px">New batches join FEFO automatically — a shorter expiry jumps the pick queue.</p>
+    </div>
+    <div class="card">
+      <h2>🔁 Transfer stock (store ⇄ warehouse)</h2>
+      <div class="row">
+        <select id="trBatch" style="max-width:100%"></select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="trQty" type="number" value="5" min="1" style="width:80px" aria-label="Transfer quantity">
+        <select id="trDir"><option value="toShelf">Warehouse → Store Shelf</option><option value="toWh">Store Shelf → Warehouse</option></select>
+        <button class="action secondary" onclick="transferStock()">Transfer</button>
+      </div>
+      <p class="muted" style="margin-top:8px">Both sides of the move are written to the ledger — nothing vanishes in transit.</p>
+    </div>
+  </div>
   <div class="card" style="margin-top:16px">
     <h2>📒 Stock Ledger (immutable — latest 50 movements)</h2>
     <div class="tablewrap"><table><thead><tr><th>When</th><th>Type</th><th>Product</th><th>Batch</th><th>Location</th><th>Qty</th><th>Ref</th></tr></thead>
@@ -225,15 +256,28 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   <div class="grid cols2">
     <div class="card">
       <h2>One Price Book — channel prices side by side</h2>
-      <div class="tablewrap"><table><thead><tr><th>Product</th><th>Base ₱</th><th>Store ₱</th><th>Online ₱</th></tr></thead>
+      <div class="tablewrap"><table><thead><tr><th>Product</th><th>Base ₱</th><th>Store ₱</th><th>Online ₱</th><th>Set base ₱</th></tr></thead>
       <tbody id="priceBook"></tbody></table></div>
       <p class="muted" style="margin-top:8px">Divergence is always deliberate, visible &amp; time-bound — never accidental.</p>
     </div>
     <div class="card">
       <h2>Active promotions</h2>
-      <div class="tablewrap"><table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason</th><th>Ends</th></tr></thead>
+      <div class="tablewrap"><table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason</th><th>Ends</th><th></th></tr></thead>
       <tbody id="promoTable"></tbody></table></div>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Create promotion (Admin)</h2>
+    <div class="row">
+      <select id="prProduct"></select>
+      <input id="prPct" type="number" value="10" min="1" max="90" style="width:70px" aria-label="Percent off">
+      <span class="muted">% off</span>
+      <select id="prChannel"><option value="online">Online</option><option value="store">In-store</option><option value="both">Both</option></select>
+      <input id="prEnds" type="date" aria-label="Promo end date">
+      <input id="prReason" placeholder="Reason staff will see (e.g. payday sale)" style="flex:1;min-width:180px" aria-label="Reason">
+      <button class="action" id="promoCreateBtn" onclick="createPromo()">Create promo</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Deliberate, visible, time-bound — the promo shows its reason and end date at POS and goes live on the landing page instantly.</p>
   </div>
 </section>
 
@@ -255,6 +299,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     </div>
     <div class="card">
       <h2>Events &amp; bookable services</h2>
+      <div class="grid" style="gap:10px;margin-bottom:14px">
+        <input id="evTitle" placeholder="Event title (e.g. Free Skin Analysis Day)" aria-label="Event title">
+        <div class="row"><input id="evDate" type="date" aria-label="Event date"><input id="evLoc" value="Ms Beau Ave Store" aria-label="Location"></div>
+        <input id="evDesc" placeholder="Description shown to customers" aria-label="Description">
+        <div><button class="action" id="eventBtn" onclick="addEventItem()">Add event</button></div>
+      </div>
       <div id="eventList"></div>
       <h2 style="margin-top:18px">Today's bookings (staff view)</h2>
       <div id="bookingList"></div>
@@ -602,6 +652,9 @@ function renderPosData() {
   keep($('posCustomer'), '<option value="">— Guest (no loyalty) —</option>'+db.customers.map(c=>`<option value="${c.qr}">${c.qr} · ${esc(c.name)}</option>`).join(''));
   keep($('ordCustomer'), db.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join(''));
   keep($('ordCourier'), db.couriers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join(''));
+  keep($('rcvProduct'), db.products.filter(p=>!p.bundle).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''));
+  keep($('trBatch'), db.batches.filter(b=>onHand(b)>0).map(b=>`<option value="${b.id}">${esc(productById(b.productId).name)} — lot ${b.lot} (Shelf ${b.stock.shelf} / WH ${b.stock.warehouse})</option>`).join(''));
+  keep($('prProduct'), db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''));
   const active = db.promotions.filter(p=>p.active);
   $('posPromoPanel').innerHTML = active.length ? '<table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason (tell the customer!)</th><th>Ends</th></tr></thead><tbody>'+
     active.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td>${esc(p.reason)}</td><td>${p.ends}</td></tr>`).join('')+'</tbody></table>'
@@ -677,9 +730,10 @@ function renderPromos() {
     const s = priceWithPromos(p,'store'), o = priceWithPromos(p,'online');
     return `<tr><td>${esc(p.name)}</td><td>${fmt(p.price)}</td>
       <td>${s.applied.length?`<b style="color:var(--rose-deep)">${fmt(s.price)}</b> <span class="tag warn">promo</span>`:fmt(s.price)}</td>
-      <td>${o.applied.length?`<b style="color:var(--rose-deep)">${fmt(o.price)}</b> <span class="tag warn">promo</span>`:fmt(o.price)}</td></tr>`;
+      <td>${o.applied.length?`<b style="color:var(--rose-deep)">${fmt(o.price)}</b> <span class="tag warn">promo</span>`:fmt(o.price)}</td>
+      <td><input type="number" id="pb-${p.id}" value="${p.price}" min="1" style="width:80px" ${isAdmin()?'':'disabled'}> <button class="action small" ${isAdmin()?'':'disabled'} onclick="setPrice('${p.id}')">Save</button></td></tr>`;
   }).join('');
-  $('promoTable').innerHTML = db.promotions.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td class="muted">${esc(p.reason)}</td><td>${p.ends}</td></tr>`).join('')
+  $('promoTable').innerHTML = db.promotions.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td class="muted">${esc(p.reason)}</td><td>${p.ends}</td><td>${!p.active?'<span class="tag">ended</span>':isAdmin()?`<button class="action small secondary" onclick="endPromo('${p.id}')">End</button>`:''}</td></tr>`).join('')
     || '<tr><td colspan="5" class="muted">None</td></tr>';
 }
 function renderCrm() {
@@ -689,8 +743,8 @@ function renderCrm() {
     <div class="pick">💡 ${esc(suggestionsFor(c)[0])}</div></div>`).join('');
 }
 function renderCms() {
-  $('bulletinList').innerHTML = db.bulletins.map(b=>`<li><b>${esc(b.title)}</b> <span class="muted">${b.ts}</span><br><span class="muted">${esc(b.body)}</span></li>`).join('');
-  $('eventList').innerHTML = db.events.map(e=>`<div class="pick"><b>${esc(e.title)}</b> — ${e.date} @ ${esc(e.location)}<br><span class="muted">${esc(e.description)}</span></div>`).join('');
+  $('bulletinList').innerHTML = db.bulletins.map(b=>`<li><b>${esc(b.title)}</b> <span class="muted">${b.ts}</span>${isAdmin()?` <button class="action small secondary" onclick="delBulletin('${b.id}')" title="Remove">✕</button>`:''}<br><span class="muted">${esc(b.body)}</span></li>`).join('');
+  $('eventList').innerHTML = db.events.map(e=>`<div class="pick"><b>${esc(e.title)}</b> — ${e.date} @ ${esc(e.location)}${isAdmin()?` <button class="action small secondary" onclick="delEvent('${e.id}')" title="Remove">✕</button>`:''}<br><span class="muted">${esc(e.description)}</span></div>`).join('');
   $('bookingList').innerHTML = db.bookings.map(b=>`<div class="pick">🗓 ${b.slot} — <b>${esc(db.customers.find(c=>c.id===b.customerId).name)}</b> · ${esc(db.events.find(e=>e.id===b.eventId).title)} <span class="tag ok">${b.status}</span></div>`).join('');
 }
 function postBulletin() {
@@ -717,6 +771,76 @@ function renderLanding() {
       <p class="muted">${p.bundle?'Complete routine set — soap, toner & day cream.':'Category: '+p.category}</p></div>`;
   }).join('');
 }
+// ---- Configurable operations ----
+function receiveStock(){
+  const productId=$('rcvProduct').value, expiry=$('rcvExpiry').value, qty=Number($('rcvQty').value)||0;
+  const lot=$('rcvLot').value.trim()||('LOT-'+(idCounter+1)), cost=Number($('rcvCost').value)||0, loc=$('rcvLoc').value;
+  if(!expiry) return toast('Pick an expiry date.');
+  if(qty<1) return toast('Quantity must be at least 1.');
+  const batch={id:nextId('b'),productId,lot,expiry,cost,stock:{shelf:loc==='shelf'?qty:0,warehouse:loc==='warehouse'?qty:0}};
+  db.batches.push(batch);
+  db.ledger.push({id:nextId('led'),ts:new Date().toISOString(),type:'receive',productId,batchId:batch.id,locationId:loc,qty,ref:'PO-'+batch.id});
+  logActivity('system',`Received ${qty}× ${productById(productId).name} — lot ${lot}, expires ${expiry}`);
+  toast(`Received lot ${lot} (${qty} units). FEFO slots it by expiry automatically.`);
+  $('rcvLot').value='';
+  renderAll();
+}
+function transferStock(){
+  const batch=db.batches.find(b=>b.id===$('trBatch').value);
+  if(!batch) return toast('Pick a batch.');
+  const qty=Number($('trQty').value)||0, toShelf=$('trDir').value==='toShelf';
+  const from=toShelf?'warehouse':'shelf', to=toShelf?'shelf':'warehouse';
+  if(qty<1||batch.stock[from]<qty) return toast(`Only ${batch.stock[from]} unit(s) available at ${from==='shelf'?'Store Shelf':'Online Warehouse'}.`);
+  batch.stock[from]-=qty; batch.stock[to]+=qty;
+  db.ledger.push({id:nextId('led'),ts:new Date().toISOString(),type:'transfer-out',productId:batch.productId,batchId:batch.id,locationId:from,qty:-qty,ref:'TR-'+batch.id});
+  db.ledger.push({id:nextId('led'),ts:new Date().toISOString(),type:'transfer-in',productId:batch.productId,batchId:batch.id,locationId:to,qty,ref:'TR-'+batch.id});
+  logActivity('system',`Transferred ${qty}× lot ${batch.lot} → ${to==='shelf'?'Store Shelf':'Online Warehouse'}`);
+  toast('Transfer complete — both sides written to the ledger.');
+  renderAll();
+}
+function setPrice(pid){
+  if(!isAdmin()) return toast('🔒 Admin only — Staff cannot edit the price book (RBAC).');
+  const v=Number(document.getElementById('pb-'+pid).value);
+  if(!(v>0)) return toast('Enter a valid price.');
+  const p=productById(pid), old=p.price;
+  p.price=v;
+  logActivity('promo',`Price change: ${p.name} ₱${old} → ₱${v} (audit logged)`);
+  toast(`${p.name}: base price updated to ${fmt(v)} on both channels.`);
+  renderAll();
+}
+function createPromo(){
+  if(!isAdmin()) return toast('🔒 Admin only — Staff cannot create promotions (RBAC).');
+  const productId=$('prProduct').value, pct=Number($('prPct').value)||0, channel=$('prChannel').value;
+  const ends=$('prEnds').value, reason=$('prReason').value.trim()||'Manual promo';
+  if(pct<1||pct>90) return toast('Percent must be between 1 and 90.');
+  if(!ends) return toast('Pick an end date.');
+  const p=productById(productId);
+  db.promotions.push({id:nextId('promo'),name:`${channel==='store'?'In-Store Promo':channel==='online'?'Flash Sale':'Promo'} — ${p.name}`,productId,type:'percent',value:pct,channel,reason,ends,active:true});
+  logActivity('promo',`Created promo: ${p.name} −${pct}% (${channel}) until ${ends}`);
+  toast('Promo live — visible in the POS panel and on the landing page.');
+  $('prReason').value='';
+  renderAll();
+}
+function endPromo(id){
+  if(!isAdmin()) return toast('🔒 Admin only.');
+  const pr=db.promotions.find(x=>x.id===id);
+  if(pr){ pr.active=false; logActivity('promo',`Ended promo: ${pr.name}`); toast('Promo ended — prices are back to base.'); }
+  renderAll();
+}
+function addEventItem(){
+  if(!isAdmin()) return toast('🔒 Admin only — Staff cannot manage events (RBAC).');
+  const title=$('evTitle').value.trim();
+  if(!title) return toast('Give the event a title.');
+  if(!$('evDate').value) return toast('Pick a date.');
+  db.events.push({id:nextId('e'),title,date:$('evDate').value,location:$('evLoc').value.trim()||'Ms Beau Ave Store',description:$('evDesc').value.trim()});
+  logActivity('cms',`Event published: "${title}" — live on landing page & app feed`);
+  $('evTitle').value=''; $('evDesc').value='';
+  toast('Event live on the landing page & app feed. No deploy needed.');
+  renderAll();
+}
+function delBulletin(id){ if(!isAdmin()) return toast('🔒 Admin only.'); db.bulletins=db.bulletins.filter(b=>b.id!==id); toast('Bulletin removed.'); renderAll(); }
+function delEvent(id){ if(!isAdmin()) return toast('🔒 Admin only.'); db.events=db.events.filter(e=>e.id!==id); toast('Event removed.'); renderAll(); }
+
 function renderAll() {
   renderPosData();
   renderDashboard(); renderInventory(); renderOrders(); renderPromos(); renderCrm(); renderCms(); renderLanding();
@@ -741,11 +865,15 @@ function signIn(role){
 function applyRole(){
   document.getElementById('promoLock').style.display = isAdmin() ? 'none' : 'block';
   document.getElementById('publishBtn').disabled = !isAdmin();
+  ['promoCreateBtn','eventBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isAdmin(); });
   renderAll();
 }
 document.getElementById('signinLogo').appendChild(document.querySelector('header .logo-mark img').cloneNode());
 
 seed(); renderAll(); renderPosCustomer();
+$('rcvExpiry').value = daysFromNow(180);
+$('prEnds').value = daysFromNow(7);
+$('evDate').value = daysFromNow(14);
 </script>
 
 </body>

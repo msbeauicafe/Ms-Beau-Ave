@@ -111,6 +111,37 @@
       <p class="muted" style="margin-top:8px">One click turns a near-expiry batch into a flash sale (online) or in-store promo — spec acceptance check #3.</p>
     </div>
   </div>
+  <div class="grid cols2" style="margin-top:16px">
+    <div class="card">
+      <h2>📥 Receive stock (new batch)</h2>
+      <div class="row">
+        <select id="rcvProduct"></select>
+        <input id="rcvLot" placeholder="Lot #" style="width:110px" aria-label="Lot number">
+        <input id="rcvExpiry" type="date" aria-label="Expiry date">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="rcvQty" type="number" value="12" min="1" style="width:80px" aria-label="Quantity">
+        <span class="muted">units ·</span>
+        <input id="rcvCost" type="number" value="100" min="0" style="width:90px" aria-label="Unit cost">
+        <span class="muted">₱ cost ·</span>
+        <select id="rcvLoc"><option value="shelf">Store Shelf</option><option value="warehouse">Online Warehouse</option></select>
+        <button class="action" onclick="receiveStock()">Receive</button>
+      </div>
+      <p class="muted" style="margin-top:8px">New batches join FEFO automatically — a shorter expiry jumps the pick queue.</p>
+    </div>
+    <div class="card">
+      <h2>🔁 Transfer stock (store ⇄ warehouse)</h2>
+      <div class="row">
+        <select id="trBatch" style="max-width:100%"></select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="trQty" type="number" value="5" min="1" style="width:80px" aria-label="Transfer quantity">
+        <select id="trDir"><option value="toShelf">Warehouse → Store Shelf</option><option value="toWh">Store Shelf → Warehouse</option></select>
+        <button class="action secondary" onclick="transferStock()">Transfer</button>
+      </div>
+      <p class="muted" style="margin-top:8px">Both sides of the move are written to the ledger — nothing vanishes in transit.</p>
+    </div>
+  </div>
   <div class="card" style="margin-top:16px">
     <h2>📒 Stock Ledger (immutable — latest 50 movements)</h2>
     <table><thead><tr><th>When</th><th>Type</th><th>Product</th><th>Batch</th><th>Location</th><th>Qty</th><th>Ref</th></tr></thead>
@@ -184,15 +215,28 @@
   <div class="grid cols2">
     <div class="card">
       <h2>One Price Book — channel prices side by side</h2>
-      <table><thead><tr><th>Product</th><th>Base ₱</th><th>Store ₱</th><th>Online ₱</th></tr></thead>
+      <table><thead><tr><th>Product</th><th>Base ₱</th><th>Store ₱</th><th>Online ₱</th><th>Set base ₱</th></tr></thead>
       <tbody id="priceBook"></tbody></table>
       <p class="muted" style="margin-top:8px">Divergence is always deliberate, visible & time-bound — never accidental.</p>
     </div>
     <div class="card">
       <h2>Active promotions</h2>
-      <table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason</th><th>Ends</th></tr></thead>
+      <table><thead><tr><th>Promo</th><th>Channel</th><th>Off</th><th>Reason</th><th>Ends</th><th></th></tr></thead>
       <tbody id="promoTable"></tbody></table>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Create promotion (Admin)</h2>
+    <div class="row">
+      <select id="prProduct"></select>
+      <input id="prPct" type="number" value="10" min="1" max="90" style="width:70px" aria-label="Percent off">
+      <span class="muted">% off</span>
+      <select id="prChannel"><option value="online">Online</option><option value="store">In-store</option><option value="both">Both</option></select>
+      <input id="prEnds" type="date" aria-label="Promo end date">
+      <input id="prReason" placeholder="Reason staff will see (e.g. payday sale)" style="flex:1;min-width:180px" aria-label="Reason">
+      <button class="action" id="promoCreateBtn" onclick="createPromo()">Create promo</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Deliberate, visible, time-bound — shows its reason and end date at POS and goes live on the landing page instantly.</p>
   </div>
 </section>
 
@@ -216,6 +260,12 @@
     </div>
     <div class="card">
       <h2>Events & bookable services</h2>
+      <div class="grid" style="gap:10px;margin-bottom:14px">
+        <input id="evTitle" placeholder="Event title (e.g. Free Skin Analysis Day)" aria-label="Event title">
+        <div class="row"><input id="evDate" type="date" aria-label="Event date"><input id="evLoc" value="Ms Beau Ave Store" aria-label="Location"></div>
+        <input id="evDesc" placeholder="Description shown to customers" aria-label="Description">
+        <div><button class="action" id="eventBtn" onclick="addEventItem()">Add event</button></div>
+      </div>
       <div id="eventList"></div>
       <h2 style="margin-top:18px">Today's bookings (staff view)</h2>
       <div id="bookingList"></div>
@@ -340,6 +390,10 @@ async function loadPosData() {
     : '<p class="muted">No active promos.</p>';
   const couriers = await api('/api/couriers');
   $('ordCourier').innerHTML = couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  $('rcvProduct').innerHTML = prods.filter(p=>!p.bundle).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  $('prProduct').innerHTML = prods.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const invData = await api('/api/inventory');
+  $('trBatch').innerHTML = invData.batches.filter(b=>b.onHand>0).map(b=>`<option value="${b.id}">${b.product} — lot ${b.lot} (Shelf ${b.stock.shelf} / WH ${b.stock.warehouse})</option>`).join('');
 }
 async function loadPosCustomer() {
   const qr = $('posCustomer').value;
@@ -418,10 +472,11 @@ async function loadPromos() {
     const s=p.storePrice, o=p.onlinePrice;
     return `<tr><td>${p.name}</td><td>${fmt(p.price)}</td>
       <td>${s.applied.length?`<b style="color:var(--rose-deep)">${fmt(s.price)}</b> <span class="tag warn">promo</span>`:fmt(s.price)}</td>
-      <td>${o.applied.length?`<b style="color:var(--rose-deep)">${fmt(o.price)}</b> <span class="tag warn">promo</span>`:fmt(o.price)}</td></tr>`;
+      <td>${o.applied.length?`<b style="color:var(--rose-deep)">${fmt(o.price)}</b> <span class="tag warn">promo</span>`:fmt(o.price)}</td>
+      <td><input type="number" id="pb-${p.id}" value="${p.price}" min="1" style="width:80px" ${isAdmin()?'':'disabled'}> <button class="action small" ${isAdmin()?'':'disabled'} onclick="setPrice('${p.id}')">Save</button></td></tr>`;
   }).join('');
   const promos = await api('/api/promos');
-  $('promoTable').innerHTML = promos.map(p=>`<tr><td>${p.name}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td class="muted">${p.reason}</td><td>${p.ends}</td></tr>`).join('')
+  $('promoTable').innerHTML = promos.map(p=>`<tr><td>${p.name}</td><td><span class="tag">${p.channel}</span></td><td>−${p.value}%</td><td class="muted">${p.reason}</td><td>${p.ends}</td><td>${!p.active?'<span class="tag">ended</span>':isAdmin()?`<button class="action small secondary" onclick="endPromo('${p.id}')">End</button>`:''}</td></tr>`).join('')
     || '<tr><td colspan="5" class="muted">None</td></tr>';
 }
 
@@ -441,8 +496,8 @@ async function loadCrm() {
 // ---- CMS ----
 async function loadCms() {
   const [bls, evs, bks] = await Promise.all([api('/api/bulletins'), api('/api/events'), api('/api/bookings')]);
-  $('bulletinList').innerHTML = bls.map(b=>`<li><b>${b.title}</b> <span class="muted">${b.ts}</span><br><span class="muted">${b.body}</span></li>`).join('');
-  $('eventList').innerHTML = evs.map(e=>`<div class="pick"><b>${e.title}</b> — ${e.date} @ ${e.location}<br><span class="muted">${e.description}</span></div>`).join('');
+  $('bulletinList').innerHTML = bls.map(b=>`<li><b>${b.title}</b> <span class="muted">${b.ts}</span>${isAdmin()?` <button class="action small secondary" onclick="delBulletin('${b.id}')" title="Remove">✕</button>`:''}<br><span class="muted">${b.body}</span></li>`).join('');
+  $('eventList').innerHTML = evs.map(e=>`<div class="pick"><b>${e.title}</b> — ${e.date} @ ${e.location}${isAdmin()?` <button class="action small secondary" onclick="delEvent('${e.id}')" title="Remove">✕</button>`:''}<br><span class="muted">${e.description}</span></div>`).join('');
   $('bookingList').innerHTML = bks.map(b=>`<div class="pick">🗓 ${b.slot} — <b>${b.customer}</b> · ${b.event} <span class="tag ok">${b.status}</span></div>`).join('') || '<p class="muted">No bookings.</p>';
 }
 async function postBulletin() {
@@ -452,6 +507,67 @@ async function postBulletin() {
   $('blTitle').value = ''; $('blBody').value = '';
   toast('Published! Open the landing page — it\'s already live. No deploy needed.');
   loadCms();
+}
+
+// ---- Configurable operations ----
+async function receiveStock() {
+  try {
+    await api('/api/inventory/receive', { productId:$('rcvProduct').value, lot:$('rcvLot').value.trim(),
+      expiry:$('rcvExpiry').value, qty:Number($('rcvQty').value)||0, cost:Number($('rcvCost').value)||0, locationId:$('rcvLoc').value });
+    toast('Stock received — FEFO slots it by expiry automatically.');
+    $('rcvLot').value = '';
+    refresh();
+  } catch(e){ toast('🚫 ' + e.message); }
+}
+async function transferStock() {
+  try {
+    await api('/api/inventory/transfer', { batchId:$('trBatch').value, qty:Number($('trQty').value)||0, direction:$('trDir').value });
+    toast('Transfer complete — both sides written to the ledger.');
+    refresh();
+  } catch(e){ toast('🚫 ' + e.message); }
+}
+async function setPrice(pid) {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot edit the price book (RBAC).');
+  try {
+    await api('/api/pricebook', { productId:pid, price:Number(document.getElementById('pb-'+pid).value) });
+    toast('Base price updated on both channels.');
+    refresh();
+  } catch(e){ toast('🚫 ' + e.message); }
+}
+async function createPromo() {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot create promotions (RBAC).');
+  try {
+    await api('/api/promos/create', { productId:$('prProduct').value, percent:Number($('prPct').value)||0,
+      channel:$('prChannel').value, ends:$('prEnds').value, reason:$('prReason').value.trim() });
+    toast('Promo live — visible in the POS panel and on the landing page.');
+    $('prReason').value = '';
+    refresh();
+  } catch(e){ toast('🚫 ' + e.message); }
+}
+async function endPromo(id) {
+  if (!isAdmin()) return toast('🔒 Admin only.');
+  try { await api('/api/promos/end', { id }); toast('Promo ended — prices are back to base.'); refresh(); }
+  catch(e){ toast('🚫 ' + e.message); }
+}
+async function addEventItem() {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot manage events (RBAC).');
+  try {
+    await api('/api/events', { title:$('evTitle').value.trim(), date:$('evDate').value,
+      location:$('evLoc').value.trim(), description:$('evDesc').value.trim() });
+    $('evTitle').value = ''; $('evDesc').value = '';
+    toast('Event live on the landing page & app feed. No deploy needed.');
+    refresh();
+  } catch(e){ toast('🚫 ' + e.message); }
+}
+async function delBulletin(id) {
+  if (!isAdmin()) return toast('🔒 Admin only.');
+  try { await api('/api/bulletins/remove', { id }); toast('Bulletin removed.'); loadCms(); }
+  catch(e){ toast('🚫 ' + e.message); }
+}
+async function delEvent(id) {
+  if (!isAdmin()) return toast('🔒 Admin only.');
+  try { await api('/api/events/remove', { id }); toast('Event removed.'); loadCms(); }
+  catch(e){ toast('🚫 ' + e.message); }
 }
 
 // ---- Refresh ----
@@ -486,11 +602,16 @@ function signIn(role){
 function applyRole(){
   document.getElementById('promoLock').style.display = isAdmin() ? 'none' : 'block';
   document.getElementById('publishBtn').disabled = !isAdmin();
+  ['promoCreateBtn','eventBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !isAdmin(); });
   refresh();
 }
 document.getElementById('signinLogo').appendChild(document.querySelector('header .logo-mark img').cloneNode());
 
 refresh();
+const _d = (days) => new Date(Date.now() + days*24*60*60*1000).toISOString().slice(0,10);
+$('rcvExpiry').value = _d(180);
+$('prEnds').value = _d(7);
+$('evDate').value = _d(14);
 </script>
 </body>
 </html>
