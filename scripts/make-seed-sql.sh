@@ -64,14 +64,21 @@ HDR
   #   statutory_rates — reference data migration 0005 inserts on its own, so
   #                     dumping it too would collide on the primary key and
   #                     abort the rest of the load
+  # --column-inserts rather than the default COPY: this file is executed
+  # server-side (Postgres fetches it over HTTP), and `COPY ... FROM stdin` is
+  # a psql client construct with no stdin to read from there. Naming the
+  # columns also makes the file independent of column order.
+  # The \restrict / \unrestrict wrappers newer pg_dump emits are likewise
+  # psql-only meta-commands and are stripped.
   "$PGBIN/pg_dump" -h "$WORKDIR" -p "$PGPORT" -d seedsrc \
-      --data-only --no-owner --no-privileges \
+      --data-only --no-owner --no-privileges --column-inserts \
       --exclude-table-data=audit_log --exclude-table-data=statutory_rates \
-    | sed -E "s/^COPY public\./COPY /; \
+    | sed -E "s/^INSERT INTO public\./INSERT INTO /; \
               s/setval\('public\./setval('/; \
+              /^\\\\(un)?restrict/d; \
               /^SET search_path/d; \
               /^SELECT pg_catalog\.set_config\('search_path'/d"
   echo "reset session_replication_role;"
 } > "$OUT"
 
-echo "wrote $OUT ($(wc -c < "$OUT") bytes, $(grep -c '^COPY' "$OUT") tables)"
+echo "wrote $OUT ($(wc -c < "$OUT") bytes, $(grep -c "^INSERT INTO" "$OUT") rows)"
