@@ -2,3 +2,10 @@ node_modules/
 *.log
 .env
 .env.*
+
+# Android signing material — losing it means never being able to update the
+# published apps, and publishing it would let anyone sign as MS BEAU AVE.
+android/msbeauave.keystore
+android/.gradle/
+android/build/
+android/app/build/

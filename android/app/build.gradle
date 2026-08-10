@@ -1,0 +1,62 @@
+// Trusted Web Activity wrappers for the two MS BEAU AVE apps.
+//
+// A TWA is a thin native shell that opens a URL full-screen in the user's
+// Chrome engine, so the app content updates whenever the website does — no
+// reinstall needed to ship a change. Two product flavours build from the same
+// source: the customer shop and the back-office operations app.
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.msbeauave.twa'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+        versionCode project.hasProperty('vcode') ? project.vcode.toInteger() : 3
+        versionName project.hasProperty('vname') ? project.vname : '3.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(project.findProperty('storeFile') ?: 'msbeauave.keystore')
+            storePassword project.findProperty('storePassword') ?: ''
+            keyAlias project.findProperty('keyAlias') ?: 'msbeauave'
+            keyPassword project.findProperty('keyPassword') ?: ''
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    flavorDimensions += 'app'
+    productFlavors {
+        shop {
+            dimension 'app'
+            applicationId 'com.msbeauave.shop'
+            resValue 'string', 'app_name', 'MS BEAU AVE'
+            resValue 'string', 'launch_url', 'https://ms-beau-ave.vercel.app/shop/'
+            resValue 'string', 'host_name', 'ms-beau-ave.vercel.app'
+        }
+        backoffice {
+            dimension 'app'
+            applicationId 'com.msbeauave.backoffice'
+            resValue 'string', 'app_name', 'MS BEAU AVE Ops'
+            resValue 'string', 'launch_url', 'https://ms-beau-ave.vercel.app/ops/'
+            resValue 'string', 'host_name', 'ms-beau-ave.vercel.app'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

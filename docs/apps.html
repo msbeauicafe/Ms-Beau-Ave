@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#D8A7B1">
+<title>MS BEAU AVE — Install the apps</title>
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --pink:#D8A7B1; --rose:#B4838D; --bg:#FAF6F4; --blush:#F4E4E8;
+          --ink:#4A3B40; --muted:#9a868c; --amber:#E0A458; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 "Segoe UI",system-ui,-apple-system,sans-serif}
+  .wrap{max-width:640px;margin:0 auto;padding:2rem 1.2rem 4rem}
+  header{text-align:center;margin-bottom:2rem}
+  header img{width:88px;height:88px;border-radius:50%;object-fit:cover}
+  h1{font-size:1.4rem;letter-spacing:.12em;color:var(--rose);margin:.6rem 0 .2rem}
+  .sub{color:var(--muted);font-size:.92rem}
+  .card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(180,131,141,.14);
+        padding:1.3rem;margin-bottom:1.1rem}
+  .card h2{font-size:1.08rem;margin:0 0 .2rem}
+  .card p{margin:.3rem 0 1rem;color:var(--muted);font-size:.92rem}
+  .btn{display:inline-block;background:var(--pink);color:#fff;text-decoration:none;
+       border-radius:10px;padding:.6rem 1.2rem;font-weight:600;font-size:.95rem}
+  .btn.ghost{background:none;color:var(--rose);border:1.5px solid var(--pink);margin-left:.4rem}
+  .note{background:#f9ecd9;color:#a86f22;border-radius:12px;padding:.9rem 1.1rem;
+        font-size:.9rem;margin-bottom:1.4rem}
+  ol{padding-left:1.2rem;font-size:.92rem;color:var(--muted)}
+  code{background:var(--blush);border-radius:5px;padding:.1rem .35rem;font-size:.88rem;color:var(--rose)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon-512.png" alt="MS BEAU AVE">
+    <h1>MS BEAU AVE</h1>
+    <div class="sub">Install the Android apps</div>
+  </header>
+
+  <div class="note">
+    These builds are signed with a new key. If an older MS BEAU AVE app is
+    already installed, uninstall it first — Android refuses to replace an app
+    whose signature has changed.
+  </div>
+
+  <div class="card">
+    <h2>🛍️ Customer app</h2>
+    <p>Shop the catalogue, track orders and loyalty points. Opens the live
+       storefront, so it stays current without reinstalling.</p>
+    <a class="btn" href="msbeauave-shop.apk">Download APK</a>
+    <a class="btn ghost" href="shop/">Open in browser</a>
+  </div>
+
+  <div class="card">
+    <h2>⚙️ Back office</h2>
+    <p>The operations system: dashboard, stock and batches, receiving, the
+       point of sale, reseller orders and credit, reports. Sign in with the
+       role you want to test.</p>
+    <a class="btn" href="msbeauave-backoffice.apk">Download APK</a>
+    <a class="btn ghost" href="ops/">Open in browser</a>
+  </div>
+
+  <div class="card">
+    <h2>Installing on Android</h2>
+    <ol>
+      <li>Tap a download above on the phone itself.</li>
+      <li>Android will warn about installing outside the Play Store — choose
+          <code>Settings</code> and allow this browser to install apps.</li>
+      <li>Open the downloaded file and tap <code>Install</code>.</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>

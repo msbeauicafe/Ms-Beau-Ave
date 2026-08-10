@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dusty pink design system, mirrored for the native chrome. -->
+<resources>
+    <color name="colorPrimary">#D8A7B1</color>
+    <color name="backgroundColor">#F9E9F0</color>
+</resources>
