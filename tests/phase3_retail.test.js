@@ -1,12 +1,12 @@
 // Phase 3 — Retail sync & cash controls (Spec.md §3.2, §6.6, §8)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch, ledger } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, ledger, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 
 async function retailSku(db, qty, overrides = {}) {
   const sku = await createProduct(db, uniq('SKU'), {

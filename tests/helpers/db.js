@@ -35,6 +35,14 @@ export async function asRole(db, role, fn, extra = {}) {
   }
 }
 
+/** ISO date n months from today — keeps expiry fixtures relative to the run
+ *  date so the 12-month B2B viability floor never rots them. */
+export function monthsOut(n) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 let seq = 0;
 /**
  * Unique suffix so tests never collide on skus/batch numbers. Includes the

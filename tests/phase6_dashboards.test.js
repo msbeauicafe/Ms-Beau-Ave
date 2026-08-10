@@ -1,17 +1,17 @@
 // Phase 6 — Dashboard data layer (Spec.md §9)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 
 test('warehouse pick list shows committed FEFO lines of open orders (§9.2)', async () => {
   const sku = await createProduct(db, uniq('SKU'), { alloc_b2b: 1, alloc_retail: 0, alloc_safety: 0 });
   const nearNo = uniq('NEAR');
-  await receiveBatch(db, sku, nearNo, '2026-10-15', 10);
+  await receiveBatch(db, sku, nearNo, monthsOut(14), 10);
   await receiveBatch(db, sku, uniq('FAR'), FUTURE, 10);
 
   const resellerId = (await db.query(

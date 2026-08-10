@@ -2,12 +2,12 @@
 // Runs against a real Postgres via scripts/test-ims.sh.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch, ledger } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, ledger, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 
 /** An ACTIVE, verified Tier-2 reseller with room to order (credit engine satisfied). */
 async function activeReseller(db, overrides = {}) {
@@ -53,9 +53,9 @@ test('per-SKU allocation ratio override is honored', async () => {
 test('FEFO pick proposes oldest viable batch first and skips expired stock', async () => {
   const sku = await createProduct(db, uniq('SKU'), { alloc_b2b: 1, alloc_retail: 0, alloc_safety: 0 });
   await receiveBatch(db, sku, uniq('EXPIRED'), '2026-01-15', 50); // already expired
-  await receiveBatch(db, sku, uniq('FAR'),  '2027-12-01', 40);
+  await receiveBatch(db, sku, uniq('FAR'),  monthsOut(28), 40);
   const nearNo = uniq('NEAR');
-  await receiveBatch(db, sku, nearNo, '2026-10-01', 30);
+  await receiveBatch(db, sku, nearNo, monthsOut(14), 30);
 
   const picks = await asRole(db, 'WAREHOUSE', async (c) =>
     (await c.query(`select * from fefo_pick('B2B_POOL', $1, 50)`, [sku])).rows);
@@ -68,8 +68,8 @@ test('FEFO pick proposes oldest viable batch first and skips expired stock', asy
 
 test('order placement commits stock FEFO and hides it from availability', async () => {
   const sku = await createProduct(db, uniq('SKU'), { alloc_b2b: 1, alloc_retail: 0, alloc_safety: 0 });
-  const nearBatch = await receiveBatch(db, sku, uniq('NEAR'), '2026-11-01', 10);
-  await receiveBatch(db, sku, uniq('FAR'), '2027-11-01', 10);
+  const nearBatch = await receiveBatch(db, sku, uniq('NEAR'), monthsOut(14), 10);
+  await receiveBatch(db, sku, uniq('FAR'), monthsOut(26), 10);
   const resellerId = await activeReseller(db);
 
   const before = await db.query(

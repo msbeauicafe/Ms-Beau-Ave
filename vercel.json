@@ -1,7 +1,15 @@
 {
   "outputDirectory": "docs",
   "cleanUrls": true,
+  "functions": {
+    "api/ops/[[...path]].js": {
+      "//": "The app reads its SPA and logo from disk at request time, which the bundler cannot infer from static imports — name them so they ship with the function.",
+      "includeFiles": "{app/public/**,ms beau logo.jpg}"
+    }
+  },
   "rewrites": [
-    { "source": "/track/:no", "destination": "/api/track?no=:no" }
+    { "source": "/track/:no", "destination": "/api/track?no=:no" },
+    { "source": "/ops", "destination": "/api/ops" },
+    { "source": "/ops/:path*", "destination": "/api/ops/:path*" }
   ]
 }
