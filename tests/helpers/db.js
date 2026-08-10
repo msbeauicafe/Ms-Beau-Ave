@@ -36,9 +36,13 @@ export async function asRole(db, role, fn, extra = {}) {
 }
 
 let seq = 0;
-/** Unique suffix so tests never collide on skus/batch numbers. */
+/**
+ * Unique suffix so tests never collide on skus/batch numbers. Includes the
+ * pid because each test file runs in its own process — a timestamp+counter
+ * alone can collide across files landing on the same millisecond.
+ */
 export function uniq(prefix) {
-  return `${prefix}-${Date.now()}-${++seq}`;
+  return `${prefix}-${process.pid}-${Date.now()}-${++seq}`;
 }
 
 export async function createProduct(db, sku, overrides = {}) {
@@ -54,11 +58,12 @@ export async function createProduct(db, sku, overrides = {}) {
   await asRole(db, 'OWNER_ADMIN', (c) =>
     c.query(
       `insert into products (sku, name, unit_cost, wholesale_price, srp, retail_price,
-                             shelf_life_months, alloc_b2b, alloc_retail, alloc_safety)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+                             shelf_life_months, alloc_b2b, alloc_retail, alloc_safety,
+                             retail_min_qty)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [sku, cols.name, cols.unit_cost, cols.wholesale_price, cols.srp, cols.retail_price,
        cols.shelf_life_months, cols.alloc_b2b ?? null, cols.alloc_retail ?? null,
-       cols.alloc_safety ?? null],
+       cols.alloc_safety ?? null, cols.retail_min_qty ?? 0],
     ));
   return sku;
 }

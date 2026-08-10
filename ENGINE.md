@@ -11,6 +11,8 @@ locking, reseller credit control, RLS isolation, and an immutable audit log.
 |---|---|
 | `supabase/migrations/0001_core_ims.sql` | **Phase 1 — Core IMS**: products, batches, pools, ledger, movements, orders, receiving with 70/20/10 auto-allocation, FEFO picking, atomic `place_order`, transfers, RBAC + RLS, immutable audit log |
 | `supabase/migrations/0002_credit_engine.sql` | **Phase 2 — Credit engine**: resellers, tiers, invoices/AR, payments, §6.1 hard rules, AR aging + exposure views, onboarding docs |
+| `supabase/migrations/0003_retail_sync.sql` | **Phase 3 — Retail sync & cash controls**: idempotent POS webhook ingestion, replenishment alerts, returns + tester/damage logs, blind cash drops with same-day reconciliation and repeat-variance watch |
+| `supabase/migrations/0004_procurement_rop.sql` | **Phase 4 — Procurement & ROP**: vendors, PO lifecycle with customs/FDA legs + actual lead-time capture, §6.3 ROP engine, shelf-life-capped reorder suggestions, ABC segmentation, aging-stock report, cycle counts |
 | `tests/` | Acceptance tests run against a real Postgres 16 (`node --test`) |
 | `scripts/test-ims.sh` | Spins up an ephemeral Postgres cluster, applies migrations, runs the suite |
 | `supabase/schema.sql` | Legacy demo persistence (members + orders for the static demo app) — unchanged |
@@ -28,9 +30,9 @@ npm test
 |---|---|---|
 | 1 — Core IMS | ✅ built + tested | Receiving → allocation → FEFO pick → committed lock end-to-end; §8 concurrency test passes (two simultaneous orders for the last 5 units — exactly one succeeds) |
 | 2 — B2B credit engine | ✅ built + tested | A past-due Tier 2 reseller is auto-blocked and cannot place an order |
-| 3 — Retail sync & cash controls | ⏳ next | POS webhook adapter, retail-pool deduction, blind drops |
-| 4 — Procurement & ROP | ⏳ | ROP engine with the §6.3 serum unit test (525 / 1,125) |
-| 5 — HRMS & payroll | ⏳ | PH statutory payroll, 3 attendance modes, commissions |
+| 3 — Retail sync & cash controls | ✅ built + tested | POS sales deduct the Retail Shelf pool only, replays can't double-deduct; blind drops reconcile same-day with auto-flagging |
+| 4 — Procurement & ROP | ✅ built + tested | §6.3 serum unit test passes exactly (safety stock 525, ROP 1,125); reorder suggestions respect the 12-month shelf-life floor |
+| 5 — HRMS & payroll | ⏳ next | PH statutory payroll, 3 attendance modes, commissions |
 | 6 — Dashboards & polish | ⏳ | §9 dashboards, notification center |
 
 ## How the rules are enforced (design notes)
@@ -68,8 +70,31 @@ npm test
   warehouse totals or retail pricing). Verified by tests running as a
   non-superuser role.
 - **Audit (§8).** Triggers append every products/ledger/orders/resellers/
-  invoices change to `audit_log`; `audit_log` and `stock_movements` reject
-  UPDATE/DELETE at the trigger level.
+  invoices/cash-drops/PO change to `audit_log`; `audit_log` and
+  `stock_movements` reject UPDATE/DELETE at the trigger level.
+- **POS sync (§3.2, §8).** `ingest_pos_sale(event_id, lines)` claims the POS
+  event id first (`ON CONFLICT DO NOTHING`), so queue-and-retry webhook
+  delivery is idempotent — a replayed event returns the original order and
+  never deducts the shelf twice. `pos_daily_ingest` reconciles ingested totals
+  against the POS Z-report to detect missed events. The webhook adapter
+  authenticates as the retail channel (`app_role = RETAIL_CASHIER`,
+  `app.actor = 'POS_WEBHOOK'`).
+- **Blind drops (§6.6).** `submit_cash_drop()` stores only the declared count;
+  `pos_total`/`variance` stay NULL until finance runs
+  `reconcile_cash_drops(date, threshold)`. Cashiers can only read
+  `my_cash_drops`, which never exposes the POS total. Variances beyond the
+  threshold auto-flag; `cashier_variance_watch` surfaces cashiers with ≥2
+  flags in 90 days.
+- **ROP (§6.3).** `rop_formula` implements the spec formulas verbatim (the
+  serum worked example is a unit test). `reorder_alerts` caps
+  `suggested_order_qty` at `avg_daily_sales × (shelf_life × 30 − 365)` — never
+  order more than sells before the batch falls under the 12-month reseller
+  floor. `rop_recalc_due` prompts quarterly recalculation. `recompute_abc()`
+  classes SKUs by cumulative revenue share (80/95 cutoffs).
+- **Procurement (§3.4).** PO lifecycle `DRAFT → SENT → IN_TRANSIT → CUSTOMS →
+  RECEIVED` with customs/FDA status fields; `lead_time_actual` is captured
+  door-to-door (shipping + customs + FDA) on receipt, and received batches
+  link back to their PO for traceability.
 
 ## Deploying to Supabase
 
