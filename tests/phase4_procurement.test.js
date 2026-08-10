@@ -1,12 +1,12 @@
 // Phase 4 — Procurement & ROP engine (Spec.md §3.4, §6.3)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 
 test("§6.3 worked example: imported serum — safety stock 525, ROP 1,125", async () => {
   const r = await db.query('select * from rop_formula(10, 15, 60, 75)');
@@ -80,7 +80,7 @@ test('aging stock report: batches inside the 6-month window, valued, floor-flagg
   const sku = await createProduct(db, uniq('SKU'), { unit_cost: 120 });
   const soonNo = uniq('SOON');
   await receiveBatch(db, sku, soonNo, '2026-11-10', 40);   // ~3 months out
-  await receiveBatch(db, sku, uniq('FAR'), '2028-01-01', 40);
+  await receiveBatch(db, sku, uniq('FAR'), monthsOut(17), 40);
 
   const rows = await db.query(
     'select batch_number, qty_at_risk, value_at_risk, below_reseller_floor from aging_stock_alerts where sku = $1',

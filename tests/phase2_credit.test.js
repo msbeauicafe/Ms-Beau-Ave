@@ -2,12 +2,12 @@
 // "Done when: a past-due Tier 2 reseller is auto-blocked and cannot place an order."
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 
 async function newReseller(db, overrides = {}) {
   return asRole(db, 'OWNER_ADMIN', async (c) => {

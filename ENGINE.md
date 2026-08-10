@@ -15,6 +15,7 @@ locking, reseller credit control, RLS isolation, and an immutable audit log.
 | `supabase/migrations/0004_procurement_rop.sql` | **Phase 4 — Procurement & ROP**: vendors, PO lifecycle with customs/FDA legs + actual lead-time capture, §6.3 ROP engine, shelf-life-capped reorder suggestions, ABC segmentation, aging-stock report, cycle counts |
 | `supabase/migrations/0005_hrms_payroll.sql` | **Phase 5 — HRMS & payroll**: employees, 3-mode attendance (biometric REST / POS / GPS-geofenced), 3-structure commission engine, PH statutory payroll as a data-driven locale module (SSS/PhilHealth/Pag-IBIG/WHT), 13th month, BIR 2316 data, 201 files, LMS gating |
 | `supabase/migrations/0006_dashboards.sql` | **Phase 6 — Dashboard data layer**: sales by channel, expiry risk ₱, A-item days of cover, warehouse FEFO pick list, attendance exceptions (§9) |
+| `supabase/migrations/0007_mvp_app.sql` | **Phase 7 — MVP app layer** ([`Spec-MVP.md`](Spec-MVP.md)): the reseller shelf-life floor enforced inside FEFO and `place_order`, POS checkout with sequential receipts, returns quarantine, storefront restock tasks, blind end-of-day close, expired write-off, months-of-cover reorder suggestions, and `app_users` logins |
 | `tests/` | Acceptance tests run against a real Postgres 16 (`node --test`) |
 | `scripts/test-ims.sh` | Spins up an ephemeral Postgres cluster, applies migrations, runs the suite |
 | `supabase/schema.sql` | Legacy demo persistence (members + orders for the static demo app) — unchanged |
@@ -36,6 +37,7 @@ npm test
 | 4 — Procurement & ROP | ✅ built + tested | §6.3 serum unit test passes exactly (safety stock 525, ROP 1,125); reorder suggestions respect the 12-month shelf-life floor |
 | 5 — HRMS & payroll | ✅ built + tested | Statutory computations match the published PH schedules; OT/night-diff/holiday, brand-boost and clearance-boost commissions, geofenced GPS punches all covered by tests |
 | 6 — Dashboards & polish | ✅ data layer built + tested | Every §9 dashboard has a database view feeding it; UI wiring into the `docs/` app and the notification center remain |
+| 7 — MVP web application | ✅ built + tested | All eight [`Spec-MVP.md`](Spec-MVP.md) §10 acceptance criteria pass as automated tests over the real HTTP API; `npm run app` brings up the whole system with demo data |
 
 ## How the rules are enforced (design notes)
 

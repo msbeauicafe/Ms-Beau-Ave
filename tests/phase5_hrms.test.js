@@ -1,12 +1,12 @@
 // Phase 5 — HRMS & payroll (Spec.md §3.6)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, asRole, uniq, createProduct, receiveBatch } from './helpers/db.js';
+import { pool, asRole, uniq, createProduct, receiveBatch, monthsOut } from './helpers/db.js';
 
 const db = pool();
 test.after(() => db.end());
 
-const FUTURE = '2027-06-30';
+const FUTURE = monthsOut(24);
 const num = (x) => Number(x);
 
 async function newEmployee(db, overrides = {}) {
@@ -139,7 +139,7 @@ test('B2B agent commission: reseller volume + close-to-expiry clearance boost (�
   const planId = (await db.query(
     `insert into commission_plans (name, role_type, config)
      values ('b2b-3pct', 'B2B_AGENT',
-             '{"rate": 0.03, "clearance_boost": 0.02, "clearance_window_days": 180}')
+             '{"rate": 0.03, "clearance_boost": 0.02, "clearance_window_days": 550}')
      returning id`)).rows[0].id;
   const agentId = await newEmployee(db, {
     role_type: 'B2B_AGENT', commission_plan_id: planId, base_pay: 20000,
@@ -151,12 +151,13 @@ test('B2B agent commission: reseller volume + close-to-expiry clearance boost (�
      values ($1, 2, 1000000, 30, 'ACTIVE', true, $2) returning id`,
     [uniq('Reseller'), agentId])).rows[0].id;
 
-  // Stock that expires inside the 180-day clearance window (§3.6: clearing
-  // near-expiry batches earns the boost).
+  // Stock above the 12-month reseller floor (so B2B can still take it) but
+  // inside the plan's clearance window — the window now counts batches
+  // approaching the floor cutoff, since below-floor stock can't be sold B2B.
   const sku = await createProduct(db, uniq('SKU'), {
     alloc_b2b: 1, alloc_retail: 0, alloc_safety: 0,
   });
-  await receiveBatch(db, sku, uniq('B'), '2026-12-01', 50);
+  await receiveBatch(db, sku, uniq('B'), monthsOut(15), 50);
 
   const orderId = await asRole(db, 'B2B_AGENT', async (c) =>
     (await c.query(`select place_order('B2B', $1, $2) as id`,
