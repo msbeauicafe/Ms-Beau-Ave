@@ -216,7 +216,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <input id="globalSearch" placeholder="🔍 Search orders, products, members…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" aria-label="Global search">
     <div id="gsResults" role="listbox"></div>
   </div>
-  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v47 ☁️ cloud save ON</span>
+  <span class="badge">Interactive Demo</span><span class="badge" id="verBadge">v48 ☁️ cloud save ON</span>
+  <button class="badge userbtn" id="bellBtn" onclick="openBell()" aria-label="Notification center" title="Notification center">🔔<span id="bellCount" style="display:none;margin-left:4px;background:var(--danger);color:#fff;border-radius:8px;padding:0 6px;font-size:.72rem">0</span></button>
   <button class="badge userbtn" id="userBadge" onclick="openSignIn()">Sign in</button>
   <span class="spacer"></span>
   <a href="https://www.facebook.com/search/top?q=MS%20BEAU%20AVE" target="_blank" rel="noopener" style="color:var(--rose-deep);font-size:.85rem;text-decoration:none" title="MS BEAU AVE on Facebook">📘 Facebook</a>
@@ -249,6 +250,14 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <div class="card"><h2>🏆 Best Sellers &amp; Slow Movers</h2><div class="tablewrap" id="dashBest"></div></div>
     <div class="card"><h2>🛒 Suggested Purchases (reorder report)</h2><div class="tablewrap" id="dashSuggest"></div>
       <p class="muted" style="margin-top:8px">Products at or below the reorder point (15), topped up to the target level of 40.</p></div>
+    <div class="card"><h2>📉 Stockout Risk — days of cover</h2><div class="tablewrap" id="dashCover"></div>
+      <p class="muted" style="margin-top:8px">On-hand ÷ average daily sales (90-day history). Under 7 days = <b>ORDER NOW</b>; under 14 = watch. Mirrors the engine's <code>a_item_days_of_cover</code> view.</p></div>
+    <div class="card"><h2>💸 AR Aging &amp; Reseller Exposure</h2><div id="dashAr"></div>
+      <p class="muted" style="margin-top:8px">Past-due resellers are auto-blocked from ordering (§6.1). A single reseller above 20% of total AR trips the exposure-cap alert.</p></div>
+    <div class="card"><h2>💵 Cash Variance Watch</h2><div class="tablewrap" id="dashCash"></div>
+      <p class="muted" style="margin-top:8px">Blind drops reconciled same-day; variances beyond ±₱100 auto-flag. Run the blind-drop demo in <b>⚙️ Ops Engine</b> — a flagged variance lands here.</p></div>
+    <div class="card"><h2>🧯 Clearance Playbook — aging stock</h2><div class="tablewrap" id="dashPlaybook"></div>
+      <p class="muted" style="margin-top:8px">Automated per-window plays for near-expiry lots: bundle → flash sale → tester conversion. One click executes the play and journals it.</p></div>
     <div class="card"><h2>🚚 Courier Performance</h2><div class="tablewrap" id="dashCouriers"></div>
       <p class="muted" style="margin-top:8px">Keep reliable partners; flag ones above 10% late.</p></div>
     <div class="card"><h2>📣 Activity Stream (Bitrix24-style)</h2><ul class="feed" id="activityFeed"></ul></div>
@@ -569,6 +578,18 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Date</th><th>Reseller</th><th>Product</th><th>Observed</th><th>MAP</th><th>Evidence</th><th>Status</th><th></th></tr></thead>
     <tbody id="vioTable"></tbody></table></div>
   </div>
+  <div class="card" style="margin-top:16px">
+    <h2>🔎 Gray-Market Trace — batch-level lookup</h2>
+    <p class="muted">Every unit leaves the warehouse against a lot number, so a product spotted on an
+    unauthorized listing can be traced back to exactly who bought it. Type a lot from the suspicious
+    listing's photo (try <code>RET-2538</code> or <code>TONER-2542</code>).</p>
+    <div class="row" style="margin-top:10px">
+      <input id="traceLot" placeholder="Lot number e.g. RET-2538" style="width:220px" aria-label="Lot number" list="traceLots">
+      <datalist id="traceLots"></datalist>
+      <button class="action" onclick="traceLotLookup()">Trace lot</button>
+    </div>
+    <div id="traceOut" style="margin-top:10px"></div>
+  </div>
 </section>
 
 <section id="opsengine" class="tab">
@@ -644,6 +665,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
       <div class="row" style="margin-top:8px">
         <span class="muted">shelf life (months)</span><input id="oeShelf" type="number" value="13" style="width:64px">
         <button class="action" onclick="oeRop()">Compute ROP</button>
+        <button class="action secondary" onclick="oeRecalibrate()">↻ Recalibrate from sales</button>
       </div>
       <div id="oeRopOut" style="margin-top:10px"></div>
     </div>
@@ -789,6 +811,14 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   <div class="modal" role="dialog" aria-label="Rate your order"><div id="rateContent"></div>
   <div style="text-align:right;margin-top:10px"><button class="action secondary" onclick="document.getElementById('rateOverlay').classList.remove('open')">Close</button></div></div>
 </div>
+<div class="overlay" id="bellOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" role="dialog" aria-label="Notification center">
+    <h2 style="margin-bottom:10px">🔔 Notification center</h2>
+    <p class="muted" style="margin-bottom:10px">Every actionable signal in one place — expiry risk, ORDER NOW, credit blocks, MAP strikes, cash flags. Click one to jump to the tab that fixes it.</p>
+    <div id="bellContent"></div>
+    <div style="text-align:right;margin-top:10px"><button class="action secondary" onclick="document.getElementById('bellOverlay').classList.remove('open')">Close</button></div>
+  </div>
+</div>
 <div class="overlay" id="notifOverlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" role="dialog" aria-label="Updates"><div id="notifContent"></div>
   <div style="text-align:right;margin-top:10px"><button class="action secondary" onclick="document.getElementById('notifOverlay').classList.remove('open')">Close</button></div></div>
@@ -927,6 +957,15 @@ function seed() {
     mapViolations: [
       { id:'vio1', resellerId:'rs2', resellerName:'BeautyDeals MNL', productId:'p5', productName:'Retinoid-Acid Night Active', observedPrice:399, mapPrice:432, url:'', date:daysFromNow(-5), status:'warned' },
     ],
+    receivables: [
+      { id:'ar1', resellerId:'rs1', invoice:'INV-2087', amount:42500, issued:daysFromNow(-38), due:daysFromNow(-8),  paid:false },
+      { id:'ar2', resellerId:'rs1', invoice:'INV-2101', amount:18000, issued:daysFromNow(-12), due:daysFromNow(18), paid:false },
+      { id:'ar3', resellerId:'rs2', invoice:'INV-2095', amount:9600,  issued:daysFromNow(-20), due:daysFromNow(-2),  paid:false },
+      { id:'ar4', resellerId:'rs2', invoice:'INV-2110', amount:7400,  issued:daysFromNow(-4),  due:daysFromNow(26), paid:false },
+    ],
+    cashFlags: [
+      { id:'cf1', cashier:'Cess Ramos', date:daysFromNow(-6), declared:9350, posTotal:9500, variance:-150 },
+    ],
     ledger: [], orders: [], shipments: [], activity: [],
   };
   for (const b of db.batches) for (const loc of db.locations) {
@@ -1062,6 +1101,65 @@ function nearExpiry() {
       valueAtRisk:peso(onHand(b)*b.cost), window: days<=30?30 : days<=60?60 : days<=90?90 : null};
   }).filter(b=>b.window!==null).sort((a,b)=>a.daysToExpiry-b.daysToExpiry);
 }
+// §9 owner dashboard — demo mirrors of the engine views (ar_aging / ar_exposure /
+// a_item_days_of_cover / cashier_variance_watch in supabase/migrations/0006_dashboards.sql)
+const VELOCITY = { p1:1.5, p2:1, p3:4, p4:1.2, p5:3 };   // avg units/day from 90-day sales history
+function arAging() {
+  const today = new Date();
+  const rows = db.receivables.filter(r=>!r.paid).map(r=>{
+    const overdue = Math.round((today - new Date(r.due))/DAY);
+    return { ...r, reseller:(db.resellers.find(s=>s.id===r.resellerId)||{name:r.resellerId}).name, overdue,
+      bucket: overdue<=0?'current' : overdue<=30?'1–30 days' : overdue<=60?'31–60 days' : '60+ days' };
+  }).sort((a,b)=>b.overdue-a.overdue);
+  const total = rows.reduce((s,r)=>s+r.amount,0);
+  const perReseller = {};
+  for (const r of rows) perReseller[r.reseller] = (perReseller[r.reseller]||0) + r.amount;
+  const exposure = Object.entries(perReseller).map(([name,amt])=>({name, amt, pct: total?Math.round(amt/total*100):0}))
+    .sort((a,b)=>b.amt-a.amt);
+  return { rows, total, exposure, pastDue: rows.filter(r=>r.overdue>0) };
+}
+function daysOfCover() {
+  return db.products.filter(p=>!p.bundle && VELOCITY[p.id]).map(p=>{
+    const oh = productOnHand(p.id); const have = oh.shelf + oh.warehouse;
+    const cover = Math.floor(have / VELOCITY[p.id]);
+    return { name:p.name, have, avgDaily:VELOCITY[p.id], cover,
+      risk: cover<7?'order-now' : cover<14?'watch' : 'ok' };
+  }).sort((a,b)=>a.cover-b.cover);
+}
+function testerConvert(batchId) {
+  if (!isAdmin()) return toast('🔒 Admin only — Staff cannot convert stock to testers (RBAC).');
+  const b = db.batches.find(x=>x.id===batchId); const p = productById(b.productId);
+  const loc = b.stock.shelf>0 ? 'shelf' : 'warehouse';
+  const take = Math.min(2, b.stock[loc]);
+  if (!take) return toast('No sellable units left in that lot.');
+  b.stock[loc] -= take;
+  db.ledger.push({ id:nextId('led'), ts:new Date().toISOString(), type:'tester', productId:b.productId, batchId:b.id, locationId:loc, qty:-take, ref:'CLEARANCE' });
+  logActivity('expiry', `Converted ${take} unit(s) of ${p.name} lot ${b.lot} to store testers (clearance playbook)`);
+  toast(`${take} unit(s) of lot ${b.lot} moved to testers — logged in the stock ledger.`);
+  renderAll();
+}
+function buildAlerts() {
+  const alerts = [];
+  for (const b of nearExpiry())
+    alerts.push({ icon:'⏳', sev: b.window<=30?'bad':'warn', tab:'inventory',
+      message:`Lot ${b.lot} (${b.product}) expires in ${b.daysToExpiry} days — ${fmt(b.valueAtRisk)} at risk` });
+  for (const c of daysOfCover().filter(c=>c.risk==='order-now'))
+    alerts.push({ icon:'📦', sev:'bad', tab:'dashboard', message:`ORDER NOW: ${c.name} — ${c.cover} day(s) of cover left (${c.have} units)` });
+  const ar = arAging();
+  for (const r of ar.pastDue)
+    alerts.push({ icon:'💸', sev:'bad', tab:'finance', message:`${r.invoice} — ${r.reseller} is ${r.overdue} day(s) past due (${fmt(r.amount)}). Orders auto-blocked.` });
+  for (const e of ar.exposure.filter(e=>e.pct>=20))
+    alerts.push({ icon:'⚖️', sev:'warn', tab:'finance', message:`Exposure cap: ${e.name} holds ${e.pct}% of total AR (${fmt(e.amt)})` });
+  for (const v of db.mapViolations.filter(v=>v.status!=='terminated'))
+    alerts.push({ icon:'🚨', sev:'warn', tab:'resellers', message:`MAP violation open: ${v.resellerName} advertised ${v.productName} at ${fmt(v.observedPrice)} (MAP ${fmt(v.mapPrice)})` });
+  for (const f of db.cashFlags)
+    alerts.push({ icon:'💵', sev:'warn', tab:'finance', message:`Cash variance flagged: ${f.cashier} on ${f.date} — declared ${fmt(f.declared)} vs POS ${fmt(f.posTotal)} (${fmt(f.variance)})` });
+  const pending = db.orders.filter(o=>o.status!=='completed' && o.channel!=='store').length;
+  if (pending) alerts.push({ icon:'🛒', sev:'info', tab:'orders', message:`${pending} online order(s) awaiting fulfillment` });
+  const leaves = db.leaves.filter(l=>l.status==='pending').length;
+  if (leaves) alerts.push({ icon:'🧑‍💼', sev:'info', tab:'hr', message:`${leaves} leave request(s) awaiting HR approval` });
+  return alerts;
+}
 function suggestionsFor(c) {
   const bought = c.history.flatMap(h=>h.items).join(' ');
   const s = [];
@@ -1088,6 +1186,20 @@ $('nav').addEventListener('click', e => {
 });
 
 function resetDemo(){ seed(); cart=[]; $('posResult').innerHTML=''; $('raceResult').innerHTML=''; renderAll(); toast('Demo data reset to fresh seed. 🌱'); }
+
+function gotoTab(id){ const b=document.querySelector(`nav.tabs button[data-tab="${id}"]`); if(b) b.click(); }
+function openBell() {
+  const alerts = buildAlerts();
+  const sevTag = { bad:'tag bad', warn:'tag warn', info:'tag' };
+  $('bellContent').innerHTML = alerts.length
+    ? '<div class="tablewrap"><table><tbody>'+alerts.map((a,i)=>
+        `<tr style="cursor:pointer" onclick="document.getElementById('bellOverlay').classList.remove('open');gotoTab('${a.tab}')">
+          <td style="width:30px">${a.icon}</td><td>${esc(a.message)}</td>
+          <td style="width:70px"><span class="${sevTag[a.sev]}">${a.sev==='bad'?'act now':a.sev==='warn'?'review':'fyi'}</span></td></tr>`).join('')+
+      '</tbody></table></div>'
+    : '<p class="muted">All clear — nothing needs your attention 🎉</p>';
+  $('bellOverlay').classList.add('open');
+}
 
 function renderDashboard() {
   const sales = db.orders.filter(o=>o.status!=='cancelled');
@@ -1123,6 +1235,37 @@ function renderDashboard() {
     ? '<table><thead><tr><th>Product</th><th>On hand</th><th>Order</th></tr></thead><tbody>' +
       sugg.map((p) => '<tr><td>' + histItemThumb(p.name) + esc(p.name) + '</td><td><span class="tag warn">' + p.have + '</span></td><td><b>+' + p.order + ' units</b></td></tr>').join('') + '</tbody></table>'
     : '<p class="muted">All products above the reorder point — nothing to purchase ✔</p>';
+  const cover = daysOfCover();
+  $('dashCover').innerHTML = '<table><thead><tr><th>Product</th><th>On hand</th><th>Avg/day</th><th>Cover</th></tr></thead><tbody>'+
+    cover.map(c=>`<tr><td>${histItemThumb(c.name)}${esc(c.name)}</td><td>${c.have}</td><td>${c.avgDaily}</td>
+      <td>${c.risk==='order-now'?`<span class="tag bad">${c.cover} days — ORDER NOW</span>`
+          : c.risk==='watch'?`<span class="tag warn">${c.cover} days</span>`:`<span class="tag ok">${c.cover} days</span>`}</td></tr>`).join('')+'</tbody></table>';
+  const ar = arAging();
+  $('dashAr').innerHTML =
+    `<div class="grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div class="stat"><div class="num">${fmt(ar.total)}</div><div class="lbl">total AR outstanding</div></div>
+      <div class="stat"><div class="num" style="color:${ar.pastDue.length?'var(--danger)':'var(--success)'}">${fmt(ar.pastDue.reduce((s,r)=>s+r.amount,0))}</div><div class="lbl">${ar.pastDue.length} invoice(s) past due</div></div>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Reseller</th><th>₱</th><th>Bucket</th></tr></thead><tbody>`+
+    ar.rows.map(r=>`<tr><td>${esc(r.invoice)}</td><td>${esc(r.reseller)}</td><td>${fmt(r.amount)}</td>
+      <td>${r.overdue>0?`<span class="tag bad">${r.bucket} past due</span>`:'<span class="tag ok">current</span>'}</td></tr>`).join('')+
+    '</tbody></table></div>'+
+    ar.exposure.map(e=>`<p class="muted" style="margin-top:6px">${e.pct>=20?'⚖️ ':''}${esc(e.name)} — ${fmt(e.amt)} (${e.pct}% of AR)${e.pct>=20?' <span class="tag warn">exposure cap</span>':''}</p>`).join('');
+  $('dashCash').innerHTML = db.cashFlags.length
+    ? '<table><thead><tr><th>Date</th><th>Cashier</th><th>Declared</th><th>POS total</th><th>Variance</th></tr></thead><tbody>'+
+      db.cashFlags.map(f=>`<tr><td class="muted">${esc(f.date)}</td><td>${esc(f.cashier)}</td><td>${fmt(f.declared)}</td><td>${fmt(f.posTotal)}</td><td><span class="tag bad">${fmt(f.variance)} 🚩</span></td></tr>`).join('')+'</tbody></table>'
+    : '<p class="muted">No flagged variances — drawers reconcile clean ✔</p>';
+  $('dashPlaybook').innerHTML = ne.length
+    ? '<table><thead><tr><th>Lot</th><th>Expires</th><th>₱ at risk</th><th>Play</th></tr></thead><tbody>'+
+      ne.map(b=>{
+        const play = b.window<=30
+          ? `<button class="action small" onclick="flashSale('${b.id}','store')">🏷️ In-store −20%</button> <button class="action small secondary" onclick="testerConvert('${b.id}')">🧪 Tester convert</button>`
+          : b.window<=60
+          ? `<button class="action small" onclick="flashSale('${b.id}','online')">⚡ Online flash sale</button>`
+          : `<button class="action small secondary" onclick="flashSale('${b.id}','online')">🎁 Bundle / clearance promo</button>`;
+        return `<tr><td>${esc(b.lot)}<div class="muted">${esc(b.product)}</div></td><td><span class="tag ${b.window<=30?'bad':'warn'}">${b.daysToExpiry} days</span></td><td>${fmt(b.valueAtRisk)}</td><td>${play}</td></tr>`;
+      }).join('')+'</tbody></table>'
+    : '<p class="muted">No aging stock — nothing to clear 🎉</p>';
   $('dashCouriers').innerHTML = '<table><thead><tr><th>Partner</th><th>Late %</th><th>Failed %</th><th></th></tr></thead><tbody>'+
     db.couriers.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.latePct}%</td><td>${c.failedPct}%</td><td>${c.latePct>10?'<span class="tag bad">review partner</span>':'<span class="tag ok">reliable</span>'}</td></tr>`).join('')+'</tbody></table>';
   const icons = {order:'🛒', promo:'🏷️', 'low-stock':'⚠️', bopis:'📍', cms:'📰', system:'⚙️', map:'🚨', expiry:'⏳', booking:'🗓️'};
@@ -1747,6 +1890,7 @@ function updateNavCounters() {
   setC('nc-cms', db.bookings.filter((b) => b.status === 'confirmed').length);
   setC('nc-hr', db.leaves.filter((l) => l.status === 'pending').length);
   setC('nc-ws', (db.tasks || []).filter((t) => t.status !== 'done').length);
+  setC('bellCount', buildAlerts().length);
 }
 function gsGo(tab) {
   const btn = document.querySelector('nav.tabs button[data-tab="' + tab + '"]');
@@ -3013,6 +3157,32 @@ function renderResellers() {
     <td><span class="tag ${v.status === 'flagged' || v.status === 'warned' ? 'warn' : 'bad'}">${v.status}</span></td>
     <td>${VIO_NEXT[v.status] && isAdmin() ? `<button class="action small secondary" onclick="escalateViolation('${v.id}')">→ ${VIO_NEXT[v.status]}</button>` : ''}</td></tr>`).join('')
     || '<tr><td colspan="8" class="muted">No violations logged 🎉</td></tr>';
+  const dl = document.getElementById('traceLots');
+  if (dl) dl.innerHTML = db.batches.map(b=>`<option value="${esc(b.lot)}">`).join('');
+}
+function traceLotLookup() {
+  const q = ($('traceLot').value || '').trim().toLowerCase();
+  const out = $('traceOut');
+  if (!q) { out.innerHTML = '<p class="muted">Type a lot number first.</p>'; return; }
+  const batch = db.batches.find(b=>b.lot.toLowerCase()===q);
+  if (!batch) { out.innerHTML = `<p class="muted">No batch with lot "${esc(q)}" — check the Inventory tab for live lots.</p>`; return; }
+  const p = productById(batch.productId);
+  const receipts = db.ledger.filter(l=>l.batchId===batch.id && l.qty>0);
+  const outbound = [];
+  for (const o of db.orders) for (const line of o.lines||[]) for (const pick of line.pick||[])
+    if (pick.lot===batch.lot) outbound.push({ ts:o.ts, orderId:o.id, channel:o.channel==='store'?'POS (walk-in)':'Online', buyer:o.customerName, qty:pick.qty });
+  const other = db.ledger.filter(l=>l.batchId===batch.id && l.qty<0 && !['sell-pos','sell-online'].includes(l.type));
+  out.innerHTML =
+    `<p><b>${esc(p.name)}</b> — lot <b>${esc(batch.lot)}</b>, expires ${esc(batch.expiry)}, ${onHand(batch)} unit(s) still on hand.</p>
+    <div class="tablewrap" style="margin-top:8px"><table>
+      <thead><tr><th>When</th><th>Movement</th><th>Who</th><th>Qty</th></tr></thead><tbody>`+
+    receipts.map(r=>`<tr><td class="muted">${new Date(r.ts).toLocaleDateString()}</td><td><span class="tag ok">received</span></td><td class="muted">${esc(r.ref)}</td><td>+${r.qty}</td></tr>`).join('')+
+    outbound.map(r=>`<tr><td class="muted">${new Date(r.ts).toLocaleString()}</td><td><span class="tag">${r.channel}</span> ${esc(r.orderId)}</td><td><b>${esc(r.buyer)}</b></td><td>−${r.qty}</td></tr>`).join('')+
+    other.map(r=>`<tr><td class="muted">${new Date(r.ts).toLocaleString()}</td><td><span class="tag warn">${esc(r.type)}</span></td><td class="muted">${esc(r.ref)}</td><td>${r.qty}</td></tr>`).join('')+
+    `</tbody></table></div>
+    <p class="muted" style="margin-top:8px">${outbound.length
+      ? 'Every buyer of this lot is listed above — if it surfaces on a gray-market listing, you know exactly who to call. In the production engine, B2B order lines link lots to reseller accounts the same way.'
+      : 'No sales from this lot yet in this session — sell it through the POS or shop and re-trace to watch the trail build.'}</p>`;
 }
 function persistViolation(v, label) {
   persistDoc('map_violations', 'violation_no', { violation_no: v.id, reseller_no: v.resellerId, reseller_name: v.resellerName,
@@ -3254,6 +3424,18 @@ function oeRop() {
 
 /* Blind cash drop (§6.6, migration 0003) */
 let oeShiftTotal = null, oeDeclared = null;
+function oeRecalibrate() {
+  // Quarterly ROP recalibration (§6.3): re-derive velocity from actual sales, not gut feel.
+  // The production engine's rop_recalc_due view prompts this every quarter; here we blend the
+  // 90-day baseline with units actually sold this session.
+  const soldToday = {};
+  for (const o of db.orders) for (const l of o.lines||[]) soldToday[l.productId] = (soldToday[l.productId]||0) + l.qty;
+  const avg = VELOCITY.p5 + (soldToday.p5||0);
+  document.getElementById('oeAvgD').value = avg;
+  document.getElementById('oeMaxD').value = Math.ceil(avg * 1.5);
+  oeRop();
+  toast(`↻ Recalibrated from sales history: Retinoid Night Active now averages ${avg}/day${soldToday.p5 ? ' (including '+soldToday.p5+' sold this session)' : ''}. The engine queues this automatically every quarter.`);
+}
 function oeShift() {
   oeShiftTotal = 9000 + Math.round(Math.random() * 40) * 50; oeDeclared = null;
   document.getElementById('oeDecl').value = '';
@@ -3277,6 +3459,14 @@ function oeReconcile() {
       <tr><td>Variance</td><td style="color:${flagged ? 'var(--danger)' : 'var(--success)'}"><b>${oePeso(v)}</b> ${flagged ? '🚩 auto-flagged (beyond ±₱100)' : '✅ within threshold'}</td></tr>
     </tbody></table>
     <p class="muted" style="margin-top:6px">Repeat flags per cashier surface on the finance dashboard — patterns, not one-offs.</p>`;
+  if (flagged) {
+    db.cashFlags.push({ id:nextId('cf'), cashier:'Demo Cashier', date:new Date().toISOString().slice(0,10),
+      declared:oeDeclared, posTotal:oeShiftTotal, variance:peso(v) });
+    logActivity('system', `Cash variance auto-flagged: declared ${fmt(oeDeclared)} vs POS ${fmt(oeShiftTotal)}`);
+    renderAll();
+    toast('🚩 Variance flagged — it is now on the Dashboard cash-variance watch and in the 🔔 notification center.');
+  }
+  oeShiftTotal = null; oeDeclared = null;
 }
 
 /* PH statutory payroll (§3.6, migration 0005 — same formulas, rates are data) */

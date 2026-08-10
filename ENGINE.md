@@ -35,7 +35,7 @@ npm test
 | 3 — Retail sync & cash controls | ✅ built + tested | POS sales deduct the Retail Shelf pool only, replays can't double-deduct; blind drops reconcile same-day with auto-flagging |
 | 4 — Procurement & ROP | ✅ built + tested | §6.3 serum unit test passes exactly (safety stock 525, ROP 1,125); reorder suggestions respect the 12-month shelf-life floor |
 | 5 — HRMS & payroll | ✅ built + tested | Statutory computations match the published PH schedules; OT/night-diff/holiday, brand-boost and clearance-boost commissions, geofenced GPS punches all covered by tests |
-| 6 — Dashboards & polish | ✅ data layer built + tested | Every §9 dashboard has a database view feeding it; UI wiring into the `docs/` app and the notification center remain |
+| 6 — Dashboards & polish | ✅ built + tested | Every §9 dashboard has a database view feeding it, and the `docs/` app now surfaces them: owner dashboard cards (days-of-cover stockout risk, AR aging + exposure cap, cash-variance watch, clearance playbook), a 🔔 notification center aggregating every actionable signal, gray-market lot trace lookup, and the quarterly ROP recalibration action |
 
 ## How the rules are enforced (design notes)
 
