@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bash scripts/run-local.sh",
     "serve": "node scripts/dev.js",
-    "seed": "node scripts/seed.js",
+    "seed": "psql \"$DATABASE_URL\" -f db/900_demo_data.sql",
     "test": "bash scripts/test.sh"
   },
   "dependencies": {

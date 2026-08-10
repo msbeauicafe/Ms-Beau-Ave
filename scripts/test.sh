@@ -31,7 +31,7 @@ $AS_PG "$PGBIN/pg_ctl" -D "$WORK/pgdata" -w \
   -l "$WORK/pg.log" start >/dev/null
 "$PGBIN/psql" -q -h "$WORK" -p "$PGPORT" -d postgres -c "CREATE DATABASE msbeauave_test" >/dev/null
 
-for f in "$ROOT"/db/*.sql; do
+for f in "$ROOT"/db/0*.sql; do
   "$PGBIN/psql" -q -v ON_ERROR_STOP=1 -h "$WORK" -p "$PGPORT" -d msbeauave_test -f "$f" >/dev/null
 done
 

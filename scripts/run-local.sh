@@ -35,13 +35,24 @@ $AS_PG "$PGBIN/pg_ctl" -D "$WORK/pgdata" -w \
 "$PGBIN/psql" -q -h "$WORK" -p "$PGPORT" -d postgres -c "CREATE DATABASE msbeauave" >/dev/null
 
 echo "==> building the schema"
-for f in "$ROOT"/db/*.sql; do
+for f in "$ROOT"/db/0*.sql; do
   echo "    $(basename "$f")"
   "$PGBIN/psql" -q -v ON_ERROR_STOP=1 -h "$WORK" -p "$PGPORT" -d msbeauave -f "$f" >/dev/null
 done
 
 echo "==> demo data"
-node "$ROOT/scripts/seed.js"
+"$PGBIN/psql" -q -v ON_ERROR_STOP=1 -h "$WORK" -p "$PGPORT" -d msbeauave \
+  -f "$ROOT/db/900_demo_data.sql"
+cat <<'SIGNINS'
+
+  Sign in with any of these — the password is "msbeauave":
+
+    admin      the owner: everything
+    warehouse  receiving, picking, moving stock
+    cashier    the till and the close of day
+    reseller   Cebu Glow Distributors, in good standing
+    blocked    Davao Beauty Hub, past due, so it cannot order
+SIGNINS
 
 echo "==> starting the app"
 node "$ROOT/scripts/dev.js"
