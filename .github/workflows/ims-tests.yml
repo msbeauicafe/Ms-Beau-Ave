@@ -1,0 +1,31 @@
+name: IMS engine tests
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "supabase/migrations/**"
+      - "tests/**"
+      - "scripts/test-ims.sh"
+      - "package*.json"
+      - ".github/workflows/ims-tests.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "tests/**"
+      - "scripts/test-ims.sh"
+      - "package*.json"
+      - ".github/workflows/ims-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # The Ubuntu runner image ships PostgreSQL binaries; the test script
+      # spins up its own ephemeral cluster — no service container needed.
+      - run: npm test

@@ -1,0 +1,14 @@
+{
+  "name": "ms-beau-ave",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ms Beau Ave — unified distribution & retail operations system (IMS engine + demo apps)",
+  "type": "module",
+  "scripts": {
+    "test": "bash scripts/test-ims.sh",
+    "demo": "node demo/server.js"
+  },
+  "devDependencies": {
+    "pg": "^8.13.1"
+  }
+}

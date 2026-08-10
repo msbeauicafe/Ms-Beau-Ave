@@ -1,6 +1,10 @@
 # Ms Beau Ave — Omnichannel Skincare Commerce & Operations Platform
 
 - **[`Spec.md`](Spec.md)** — the full platform specification (single source of truth).
+- **[`ENGINE.md`](ENGINE.md)** — the **operations engine** (Spec phases 1–2, built + tested):
+  Postgres/Supabase migrations enforcing stock pools, FEFO, atomic committed-stock
+  locking, reseller credit tiers, RLS isolation and the immutable audit log, with an
+  acceptance test suite (`npm test`) that runs against a real Postgres 16.
 - **[`docs/`](docs/)** — the demo as a **static one-page app** (no server needed),
   ready for GitHub Pages and Vercel:
   - **GitHub Pages**: Settings → Pages → *Deploy from a branch* → `main` + `/docs`
