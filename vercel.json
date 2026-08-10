@@ -2,6 +2,8 @@
   "outputDirectory": "docs",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/track/:no", "destination": "/api/track?no=:no" }
+    { "source": "/track/:no", "destination": "/api/track?no=:no" },
+    { "source": "/ops", "destination": "/api/ops" },
+    { "source": "/ops/:path*", "destination": "/api/ops/:path*" }
   ]
 }

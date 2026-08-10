@@ -27,13 +27,43 @@ process.env.TZ = process.env.TZ || 'Asia/Manila';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = Number(process.env.PORT || 4300);
+
+// The app can be mounted under a sub-path so it can go live beside an existing
+// site instead of replacing it (on Vercel it sits at /ops). BASE_PATH is what
+// the browser sees; the server also tolerates the platform's own function
+// prefix, since a rewrite may hand us either form.
+const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, '');
+const STRIP = [`/api/ops${BASE_PATH}`, '/api/ops', BASE_PATH].filter(Boolean);
+
+function mountPath(pathname) {
+  for (const prefix of STRIP) {
+    if (pathname === prefix) return '/';
+    if (pathname.startsWith(prefix + '/')) return pathname.slice(prefix.length);
+  }
+  return pathname;
+}
 const DSN = process.env.DATABASE_URL || process.env.IMS_TEST_DSN;
 if (!DSN) {
   console.error('Set DATABASE_URL (or IMS_TEST_DSN) to a Postgres with the migrations applied.');
   process.exit(1);
 }
 const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const db = new pg.Pool({ connectionString: DSN, max: 10 });
+
+// DB_SCHEMA lets the engine live somewhere other than `public` — on the shared
+// Supabase project it sits in `msbeau`, because `public` already holds the
+// older demo site's own `orders` and `resellers` tables. Applied as a
+// connection option so it covers every query, including the ones outside a
+// request transaction (login, first-run admin creation).
+const SCHEMA = process.env.DB_SCHEMA || 'public';
+const db = new pg.Pool({
+  connectionString: DSN,
+  max: Number(process.env.DB_POOL_MAX || 10),
+  options: `-c search_path=${SCHEMA},public`,
+  // Serverless platforms recycle idle containers; don't hold connections open.
+  idleTimeoutMillis: Number(process.env.DB_IDLE_MS || 10_000),
+  connectionTimeoutMillis: 10_000,
+});
+db.on('error', (e) => console.error('idle pg client error:', e.message));
 
 // ---------------------------------------------------------------------------
 // Sessions — signed, HttpOnly cookies; no server-side session store to lose.
@@ -173,6 +203,16 @@ function flush(res, fallback) {
 }
 
 function readBody(req) {
+  // Serverless platforms parse JSON bodies before the handler runs, leaving
+  // the stream drained — reading it again would hang until the request timed
+  // out.
+  if (req.body !== undefined) {
+    if (typeof req.body === 'string') {
+      try { return Promise.resolve(req.body ? JSON.parse(req.body) : {}); }
+      catch { return Promise.reject(new Error('bad JSON body')); }
+    }
+    return Promise.resolve(req.body ?? {});
+  }
   return new Promise((resolve, reject) => {
     let data = '';
     req.on('data', (c) => { data += c; if (data.length > 1e6) req.destroy(); });
@@ -837,6 +877,14 @@ function serveStatic(req, res, pathname) {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     file = path.join(PUBLIC_DIR, 'index.html');   // SPA fallback
   }
+  // The page has to know where it is mounted before it can call its own API.
+  if (path.basename(file) === 'index.html') {
+    const html = fs.readFileSync(file, 'utf8')
+      .replaceAll('%BASE%', BASE_PATH)
+      .replace('</head>', `<script>window.__BASE__=${JSON.stringify(BASE_PATH)}</script></head>`);
+    res.writeHead(200, { 'Content-Type': MIME['.html'] });
+    return res.end(html);
+  }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
   fs.createReadStream(file).pipe(res);
 }
@@ -844,9 +892,9 @@ function serveStatic(req, res, pathname) {
 // ---------------------------------------------------------------------------
 // Server
 // ---------------------------------------------------------------------------
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://x');
-  const pathname = decodeURIComponent(url.pathname);
+  const pathname = mountPath(decodeURIComponent(url.pathname));
   if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
 
   const found = routes.filter((r) => r.re.test(pathname));
@@ -886,7 +934,9 @@ const server = http.createServer(async (req, res) => {
       body: JSON.stringify({ error: friendly(e), code: e.code }),
     });
   }
-});
+}
+
+const server = http.createServer(handleRequest);
 
 // First run on an empty database: create the owner login so the user can get in.
 async function ensureAdmin() {
@@ -906,4 +956,4 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     .catch((e) => { console.error('startup failed:', e.message); process.exit(1); });
 }
 
-export { server, db, ensureAdmin };
+export { server, db, ensureAdmin, handleRequest };

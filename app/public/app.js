@@ -23,8 +23,13 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
+// Where the app is mounted, injected by the server into index.html. Empty at
+// the site root; "/ops" when it runs beside another site on the same domain.
+const BASE = window.__BASE__ || '';
+const LOGO = `${BASE}/logo.jpg`;
+
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -88,7 +93,7 @@ function renderLogin() {
   clearInterval(pollTimer);
   app.innerHTML = `
   <div class="login-wrap"><form class="login-card" id="loginForm">
-    <img src="/logo.jpg" alt="MS BEAU AVE" onerror="this.style.display='none'">
+    <img src="${LOGO}" alt="MS BEAU AVE" onerror="this.style.display='none'">
     <h1>MS BEAU AVE</h1>
     <div class="tag">Beauty &amp; skincare distribution — one system, one stock truth</div>
     <label>Username</label><input type="text" id="u" autocomplete="username" autofocus>
@@ -135,7 +140,7 @@ function renderShell() {
   app.innerHTML = `
   <div class="shell">
     <nav class="sidebar">
-      <div class="brand"><img src="/logo.jpg" onerror="this.style.display='none'"> MS BEAU AVE</div>
+      <div class="brand"><img src="${LOGO}" onerror="this.style.display='none'"> MS BEAU AVE</div>
       ${tabs.map(([id, icon, label]) =>
         `<button class="nav-btn ${id === TAB ? 'active' : ''}" data-tab="${id}">${icon} ${label}</button>`).join('')}
       <div class="spacer"></div>

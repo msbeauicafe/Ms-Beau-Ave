@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#D8A7B1">
   <title>MS BEAU AVE — Operations</title>
-  <link rel="icon" href="/logo.jpg">
-  <link rel="stylesheet" href="/styles.css">
+  <!-- %BASE% is replaced by the server with the path the app is mounted at,
+       so the same files work at the site root and under /ops. -->
+  <link rel="icon" href="%BASE%/logo.jpg">
+  <link rel="manifest" href="%BASE%/manifest.webmanifest">
+  <link rel="stylesheet" href="%BASE%/styles.css">
 </head>
 <body>
   <div id="app"></div>
   <div id="toast"></div>
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="%BASE%/app.js"></script>
 </body>
 </html>
