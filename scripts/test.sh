@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Run the tests against a real Postgres, on a cluster created and thrown away
+# for the run. Nothing has to be installed or running beforehand beyond the
+# Postgres binaries themselves.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}"
+WORK="${TEST_DIR:-$(mktemp -d)}"
+PGPORT="${TEST_DB_PORT:-54410}"
+export PGUSER=postgres
+export TEST_DATABASE_URL="postgresql://postgres@localhost:$PGPORT/msbeauave_test?host=$WORK"
+export SESSION_SECRET="tests-only"
+
+AS_PG=""
+if [ "$(id -u)" = "0" ] && id postgres >/dev/null 2>&1; then
+  AS_PG="runuser -u postgres --"
+  chmod 777 "$WORK"
+fi
+
+cleanup() {
+  $AS_PG "$PGBIN/pg_ctl" -D "$WORK/pgdata" -m immediate stop >/dev/null 2>&1 || true
+  [ -z "${TEST_DIR:-}" ] && rm -rf "$WORK"
+}
+trap cleanup EXIT
+
+echo "==> preparing a database"
+$AS_PG "$PGBIN/initdb" -D "$WORK/pgdata" -U postgres --auth=trust --no-sync >/dev/null
+$AS_PG "$PGBIN/pg_ctl" -D "$WORK/pgdata" -w \
+  -o "-k $WORK -p $PGPORT -c listen_addresses='' -c fsync=off -c synchronous_commit=off" \
+  -l "$WORK/pg.log" start >/dev/null
+"$PGBIN/psql" -q -h "$WORK" -p "$PGPORT" -d postgres -c "CREATE DATABASE msbeauave_test" >/dev/null
+
+for f in "$ROOT"/db/*.sql; do
+  "$PGBIN/psql" -q -v ON_ERROR_STOP=1 -h "$WORK" -p "$PGPORT" -d msbeauave_test -f "$f" >/dev/null
+done
+
+echo "==> running the tests"
+cd "$ROOT"
+node --test tests/*.test.js

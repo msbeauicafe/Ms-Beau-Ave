@@ -1,0 +1,17 @@
+{
+  "name": "msbeauave-ops",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MS BEAU AVE — skincare distribution, point of sale and reseller operations",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "bash scripts/run-local.sh",
+    "serve": "node scripts/dev.js",
+    "seed": "node scripts/seed.js",
+    "test": "bash scripts/test.sh"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
