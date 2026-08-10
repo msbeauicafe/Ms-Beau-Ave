@@ -13,6 +13,8 @@ locking, reseller credit control, RLS isolation, and an immutable audit log.
 | `supabase/migrations/0002_credit_engine.sql` | **Phase 2 — Credit engine**: resellers, tiers, invoices/AR, payments, §6.1 hard rules, AR aging + exposure views, onboarding docs |
 | `supabase/migrations/0003_retail_sync.sql` | **Phase 3 — Retail sync & cash controls**: idempotent POS webhook ingestion, replenishment alerts, returns + tester/damage logs, blind cash drops with same-day reconciliation and repeat-variance watch |
 | `supabase/migrations/0004_procurement_rop.sql` | **Phase 4 — Procurement & ROP**: vendors, PO lifecycle with customs/FDA legs + actual lead-time capture, §6.3 ROP engine, shelf-life-capped reorder suggestions, ABC segmentation, aging-stock report, cycle counts |
+| `supabase/migrations/0005_hrms_payroll.sql` | **Phase 5 — HRMS & payroll**: employees, 3-mode attendance (biometric REST / POS / GPS-geofenced), 3-structure commission engine, PH statutory payroll as a data-driven locale module (SSS/PhilHealth/Pag-IBIG/WHT), 13th month, BIR 2316 data, 201 files, LMS gating |
+| `supabase/migrations/0006_dashboards.sql` | **Phase 6 — Dashboard data layer**: sales by channel, expiry risk ₱, A-item days of cover, warehouse FEFO pick list, attendance exceptions (§9) |
 | `tests/` | Acceptance tests run against a real Postgres 16 (`node --test`) |
 | `scripts/test-ims.sh` | Spins up an ephemeral Postgres cluster, applies migrations, runs the suite |
 | `supabase/schema.sql` | Legacy demo persistence (members + orders for the static demo app) — unchanged |
@@ -32,8 +34,8 @@ npm test
 | 2 — B2B credit engine | ✅ built + tested | A past-due Tier 2 reseller is auto-blocked and cannot place an order |
 | 3 — Retail sync & cash controls | ✅ built + tested | POS sales deduct the Retail Shelf pool only, replays can't double-deduct; blind drops reconcile same-day with auto-flagging |
 | 4 — Procurement & ROP | ✅ built + tested | §6.3 serum unit test passes exactly (safety stock 525, ROP 1,125); reorder suggestions respect the 12-month shelf-life floor |
-| 5 — HRMS & payroll | ⏳ next | PH statutory payroll, 3 attendance modes, commissions |
-| 6 — Dashboards & polish | ⏳ | §9 dashboards, notification center |
+| 5 — HRMS & payroll | ✅ built + tested | Statutory computations match the published PH schedules; OT/night-diff/holiday, brand-boost and clearance-boost commissions, geofenced GPS punches all covered by tests |
+| 6 — Dashboards & polish | ✅ data layer built + tested | Every §9 dashboard has a database view feeding it; UI wiring into the `docs/` app and the notification center remain |
 
 ## How the rules are enforced (design notes)
 
@@ -95,6 +97,32 @@ npm test
   RECEIVED` with customs/FDA status fields; `lead_time_actual` is captured
   door-to-door (shipping + customs + FDA) on receipt, and received batches
   link back to their PO for traceability.
+- **Attendance (§3.6).** One `punch_clock()` endpoint serves all three modes:
+  biometric devices post punches through the device-agnostic REST adapter, POS
+  tablets punch on shift login, and agents' phones send GPS coordinates that
+  are validated (haversine) against registered reseller geofences —
+  out-of-fence punches are flagged for HR review, never silently dropped.
+- **Commissions (§3.6).** `compute_commissions(period)` writes per-order
+  entries: retail staff earn a % of their own fulfilled shop sales plus
+  per-brand boost rates; B2B agents earn on their assigned resellers'
+  fulfilled volume plus a clearance boost on lines picked from batches inside
+  the 180-day expiry window. Entries are RLS'd so every rep sees their own
+  live numbers (transparent dashboards).
+- **PH payroll (§3.6).** All statutory rates live in `statutory_rates` as
+  effective-dated jsonb config — a pluggable locale module, updated with data
+  not code. `run_payroll(period)` computes monthly or hourly pay (OT ×1.25
+  past 8h/day, +10% night differential 22:00–06:00 Asia/Manila, holiday
+  premiums from the `ph_holidays` calendar), then SSS/PhilHealth/Pag-IBIG and
+  TRAIN-table withholding per employee. `ph_13th_month()` accrues 1/12 of
+  basic earned; `bir_2316_data` exposes the annual figures (PDF rendering is
+  app-layer). Payroll approval is owner-level and audited.
+- **Dashboards (§9).** Each dashboard reads views, not ad-hoc queries:
+  owner (`sales_by_channel`, `expiry_risk_value`, `a_item_days_of_cover`,
+  `ar_aging`, `ar_exposure`, `cashier_variance_watch`), warehouse
+  (`warehouse_pick_list`, `retail_replenishment_alerts`, `reorder_alerts`,
+  `aging_stock_alerts`), HR (`attendance_exceptions`, `training_compliance`,
+  `expiring_documents`), reps (`commission_entries` under self-RLS),
+  resellers (`b2b_available_stock`, own invoices/orders).
 
 ## Deploying to Supabase
 
