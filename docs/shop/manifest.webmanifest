@@ -1,12 +1,12 @@
 {
-  "name": "Ms Beau Ave — Shop",
-  "short_name": "Ms Beau Ave",
-  "description": "Shop Ms Beau Ave skincare — order, pay with GCash, track deliveries, earn points",
+  "name": "MS BEAU AVE — Shop",
+  "short_name": "MS BEAU AVE",
+  "description": "Shop MS BEAU AVE skincare — order, pay with GCash, track deliveries, earn points",
   "start_url": "/shop/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F6E7E7",
-  "theme_color": "#F6E7E7",
+  "background_color": "#F9E9F0",
+  "theme_color": "#F9E9F0",
   "icons": [
     {
       "src": "/icon-192.png",
