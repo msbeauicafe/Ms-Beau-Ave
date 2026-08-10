@@ -43,7 +43,13 @@ function mountPath(pathname) {
   return pathname;
 }
 const DSN = process.env.DATABASE_URL || process.env.IMS_TEST_DSN;
-if (!DSN) {
+// Missing configuration is reported per request rather than by exiting at
+// import: on a serverless host an exit during module load is an opaque crash,
+// where a plain message tells whoever opens the page exactly what is missing.
+const CONFIG_ERROR = DSN ? null
+  : 'This deployment has no database configured yet. Set DATABASE_URL (and '
+  + 'SESSION_SECRET, DB_SCHEMA, BASE_PATH) in the hosting environment.';
+if (!DSN && process.argv[1] === fileURLToPath(import.meta.url)) {
   console.error('Set DATABASE_URL (or IMS_TEST_DSN) to a Postgres with the migrations applied.');
   process.exit(1);
 }
@@ -895,6 +901,10 @@ function serveStatic(req, res, pathname) {
 async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://x');
   const pathname = mountPath(decodeURIComponent(url.pathname));
+  if (CONFIG_ERROR && pathname.startsWith('/api/')) {
+    json(res, 503, { error: CONFIG_ERROR });
+    return flush(res);
+  }
   if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
 
   const found = routes.filter((r) => r.re.test(pathname));
