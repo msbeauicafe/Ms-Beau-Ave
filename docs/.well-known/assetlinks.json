@@ -4,7 +4,10 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.msbeauave.shop",
-      "sha256_cert_fingerprints": ["1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3"]
+      "sha256_cert_fingerprints": [
+        "1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3",
+        "72:52:51:D5:97:94:ED:7C:00:E6:0A:A0:9F:45:6A:FE:6B:0C:E9:3A:CB:E3:12:9B:BA:F5:F4:ED:71:8A:F3:1E"
+      ]
     }
   },
   {
@@ -12,7 +15,10 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.msbeauave.backoffice",
-      "sha256_cert_fingerprints": ["1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3"]
+      "sha256_cert_fingerprints": [
+        "1A:3F:5A:BF:26:CE:FC:77:9E:EB:0C:C0:00:1E:8F:59:7E:D8:DD:6E:C0:F6:BC:B7:3E:6E:89:39:AA:AE:4A:D3",
+        "72:52:51:D5:97:94:ED:7C:00:E6:0A:A0:9F:45:6A:FE:6B:0C:E9:3A:CB:E3:12:9B:BA:F5:F4:ED:71:8A:F3:1E"
+      ]
     }
   }
 ]
