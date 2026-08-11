@@ -45,7 +45,7 @@ android {
         backoffice {
             dimension 'app'
             applicationId 'com.msbeauave.backoffice'
-            resValue 'string', 'app_name', 'MS BEAU AVE Ops'
+            resValue 'string', 'app_name', 'MBA back office'
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
