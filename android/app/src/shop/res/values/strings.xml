@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The site this app is allowed to open without a URL bar. It has to name the
+    same origin as launch_url, and that origin has to serve a matching
+    /.well-known/assetlinks.json naming this app's package and signing key.
+-->
+<resources>
+    <string name="asset_statements">
+        [{ \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+           \"target\": { \"namespace\": \"web\", \"site\": \"https://ms-beau-ave.vercel.app\" }}]
+    </string>
+</resources>

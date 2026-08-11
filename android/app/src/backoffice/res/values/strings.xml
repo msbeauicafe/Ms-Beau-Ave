@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The back office runs on its own deployment, so it declares that origin
+    rather than the marketing site's. Until that origin serves a matching
+    /.well-known/assetlinks.json, the app still opens and works — it just
+    shows Chrome's address bar instead of running full-screen.
+-->
+<resources>
+    <string name="asset_statements">
+        [{ \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+           \"target\": { \"namespace\": \"web\", \"site\": \"https://msbeauave-ops.vercel.app\" }}]
+    </string>
+</resources>

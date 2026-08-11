@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    app_name, launch_url and host_name come from the product flavours in
+    build.gradle; asset_statements comes from src/<flavour>/res, because the
+    two apps point at different origins.
+-->
 <resources>
-    <string name="asset_statements">
-        [{ \"relation\": [\"delegate_permission/common.handle_all_urls\"],
-           \"target\": { \"namespace\": \"web\", \"site\": \"https://ms-beau-ave.vercel.app\" }}]
-    </string>
 </resources>

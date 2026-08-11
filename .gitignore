@@ -6,6 +6,8 @@ node_modules/
 # Android signing material — losing it means never being able to update the
 # published apps, and publishing it would let anyone sign as MS BEAU AVE.
 android/msbeauave.keystore
+android/msbeauave-2026.keystore
+android/local.properties
 android/.gradle/
 android/build/
 android/app/build/
