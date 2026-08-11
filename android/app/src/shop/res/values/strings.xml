@@ -7,6 +7,6 @@
 <resources>
     <string name="asset_statements">
         [{ \"relation\": [\"delegate_permission/common.handle_all_urls\"],
-           \"target\": { \"namespace\": \"web\", \"site\": \"https://ms-beau-ave.vercel.app\" }}]
+           \"target\": { \"namespace\": \"web\", \"site\": \"https://msbeauave-ops.vercel.app\" }}]
     </string>
 </resources>
