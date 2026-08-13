@@ -59,6 +59,23 @@ android {
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/clock/'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
+        // One icon per shop. ?shop= fixes the branch in the address, so the
+        // tablet at a door is that door's clock and shows only its own faces —
+        // nothing to pick, and nothing to pick wrongly.
+        clockbb {
+            dimension 'app'
+            applicationId 'com.msbeauave.clock.bayanbayanan'
+            resValue 'string', 'app_name', 'Clock — Bayan Bayanan'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/clock/?shop=1'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
+        clockdao {
+            dimension 'app'
+            applicationId 'com.msbeauave.clock.dao'
+            resValue 'string', 'app_name', 'Clock — Dao'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/clock/?shop=2'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
     }
 
     compileOptions {
