@@ -49,6 +49,16 @@ android {
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
+        // The tablet by the door. Its own app rather than a page inside the
+        // back office, so what sits on the counter all day opens on the clock
+        // and can reach nothing else — no till, no stock, no takings.
+        clock {
+            dimension 'app'
+            applicationId 'com.msbeauave.clock'
+            resValue 'string', 'app_name', 'MBA time clock'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/clock/'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
     }
 
     compileOptions {
