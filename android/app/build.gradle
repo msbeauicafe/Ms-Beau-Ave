@@ -1,9 +1,10 @@
-// Trusted Web Activity wrappers for the two MS BEAU AVE apps.
+// Trusted Web Activity wrappers for the MS BEAU AVE apps.
 //
 // A TWA is a thin native shell that opens a URL full-screen in the user's
 // Chrome engine, so the app content updates whenever the website does — no
-// reinstall needed to ship a change. Two product flavours build from the same
-// source: the customer shop and the back-office operations app.
+// reinstall needed to ship a change. Every flavour below builds from this one
+// source and differs only in its name, its icon and the address it opens:
+// the customer shop, the back office, three time clocks and the resellers.
 plugins { id 'com.android.application' }
 
 android {
@@ -74,6 +75,17 @@ android {
             applicationId 'com.msbeauave.clock.dao'
             resValue 'string', 'app_name', 'Clock — Dao'
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/clock/?shop=2'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
+        // The resellers' own app. It opens the same system the back office
+        // does — what a reseller may see is settled by their sign-in and
+        // enforced in the database — but it arrives on their phone called
+        // Resellers, opening on their catalogue, with no staff menu to ignore.
+        reseller {
+            dimension 'app'
+            applicationId 'com.msbeauave.reseller'
+            resValue 'string', 'app_name', 'MBA resellers'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/portal/'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
     }

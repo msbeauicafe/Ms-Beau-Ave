@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The resellers' app opens the same origin as the back office, but as its own
+    package, so it needs its own copy of the declaration. Same site, different
+    app on the phone.
+-->
+<resources>
+    <string name="asset_statements">
+        [{ \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+           \"target\": { \"namespace\": \"web\", \"site\": \"https://msbeauave-ops.vercel.app\" }}]
+    </string>
+</resources>
