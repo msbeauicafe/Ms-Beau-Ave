@@ -71,7 +71,7 @@ android {
             dimension 'app'
             applicationId 'com.msbeauave.boastaff'
             resValue 'string', 'app_name', 'BOA Staff'
-            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/?app=staff&amp;brand=boa'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/?app=staff&brand=boa'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
         // The tablet by the door. Its own app rather than a page inside the

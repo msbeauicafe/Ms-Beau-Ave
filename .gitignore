@@ -6,6 +6,12 @@ node_modules/
 # Android signing material — losing it means never being able to update the
 # published apps, and publishing it would let anyone sign as MS BEAU AVE.
 #
+# By pattern, not by name. The list below was three filenames, so the fourth
+# key was picked straight up by `git add -A` and committed. A rule that has to
+# be extended every time a key is made is a rule that will be forgotten.
+*.jks
+*.keystore
+#
 # Both halves of that have now happened. The passwords for the two keystores
 # below are lost, so neither can sign anything again, and the staff app's first
 # key was left in a scratch folder that was wiped — which is why that app had
