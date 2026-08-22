@@ -50,6 +50,18 @@ android {
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
+        // For everybody who works here. The same website as the back office,
+        // opened at ?app=staff so the sign-in says what it is for — "your
+        // record, your leave, your hours" rather than stock and reseller
+        // orders. Its own icon so somebody coming to look at their own hours
+        // opens something called MBA Staff.
+        staff {
+            dimension 'app'
+            applicationId 'com.msbeauave.staff'
+            resValue 'string', 'app_name', 'MBA Staff'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/?app=staff'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
         // The tablet by the door. Its own app rather than a page inside the
         // back office, so what sits on the counter all day opens on the clock
         // and can reach nothing else — no till, no stock, no takings.
