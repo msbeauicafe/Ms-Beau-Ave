@@ -62,6 +62,18 @@ android {
             resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/?app=staff'
             resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
         }
+        // Beauty Obsession Avenue Corp is a company of its own rather than a
+        // branch, and its people know it by its own logo. brand=boa puts their
+        // mark and their name on the sign-in and the header and changes
+        // nothing else — same system, same database, same rules, same rose.
+        // A brand read out of a query string decides only what is drawn.
+        boastaff {
+            dimension 'app'
+            applicationId 'com.msbeauave.boastaff'
+            resValue 'string', 'app_name', 'BOA Staff'
+            resValue 'string', 'launch_url', 'https://msbeauave-ops.vercel.app/?app=staff&amp;brand=boa'
+            resValue 'string', 'host_name', 'msbeauave-ops.vercel.app'
+        }
         // The tablet by the door. Its own app rather than a page inside the
         // back office, so what sits on the counter all day opens on the clock
         // and can reach nothing else — no till, no stock, no takings.
